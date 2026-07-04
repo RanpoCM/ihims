@@ -58,15 +58,16 @@ const initialSuccessionCandidates = [
 ]
 
 // App Content - Loads data from localStorage
-function AppContent() {
+function AppContent({ role, canEdit, onLogout }) {
   const [employees, setEmployees] = useState(() => getStoredData('ihims_employees', initialEmployees))
+
   const [trainingPrograms, setTrainingPrograms] = useState(() => getStoredData('ihims_training', initialTrainingPrograms))
-  const [competencies, setCompetencies] = useState(() => getStoredData('ihims_competencies', initialCompetencies))
+  const [competencies] = useState(() => getStoredData('ihims_competencies', initialCompetencies))
   const [recognitionAwards, setRecognitionAwards] = useState(() => getStoredData('ihims_recognition', initialRecognitionAwards))
-  const [successionCandidates, setSuccessionCandidates] = useState(() => getStoredData('ihims_succession', initialSuccessionCandidates))
+  const [successionCandidates] = useState(() => getStoredData('ihims_succession', initialSuccessionCandidates))
   const [activeModule, setActiveModule] = useState('dashboard')
-  const [showForm, setShowForm] = useState(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
 
   // Save to localStorage when data changes
   useEffect(() => { setStoredData('ihims_employees', employees) }, [employees])
@@ -81,10 +82,8 @@ function AppContent() {
   const deleteEmployee = (id) => setEmployees(employees.filter(e => e.id !== id))
 
   const addTraining = (prog) => setTrainingPrograms([...trainingPrograms, { ...prog, id: Date.now() }])
-  const deleteTraining = (id) => setTrainingPrograms(trainingPrograms.filter(p => p.id !== id))
-  const addCompetency = (comp) => setCompetencies([...competencies, { ...comp, id: Date.now() }])
   const addRecognition = (rec) => setRecognitionAwards([...recognitionAwards, { ...rec, id: Date.now() }])
-  const addSuccession = (succ) => setSuccessionCandidates([...successionCandidates, { ...succ, id: Date.now() }])
+
 
   // Render the current module
   const renderModule = () => {
@@ -92,17 +91,35 @@ function AppContent() {
       case 'dashboard':
         return <Dashboard employees={employees} trainingPrograms={trainingPrograms} recognitionAwards={recognitionAwards} successionCandidates={successionCandidates} />
       case 'performance':
-        return <PerformanceModule employees={employees} addEmployee={addEmployee} updateEmployee={updateEmployee} deleteEmployee={deleteEmployee} />
+        if (!canEdit) return <Dashboard employees={employees} trainingPrograms={trainingPrograms} recognitionAwards={recognitionAwards} successionCandidates={successionCandidates} />
+
+        return (
+          <PerformanceModule
+            employees={employees}
+            canEdit={canEdit}
+            addEmployee={addEmployee}
+            updateEmployee={updateEmployee}
+            deleteEmployee={deleteEmployee}
+          />
+        )
       case 'competency':
-        return <CompetencyModule competencies={competencies} employees={employees} />
+        if (!canEdit) return <Dashboard employees={employees} trainingPrograms={trainingPrograms} recognitionAwards={recognitionAwards} successionCandidates={successionCandidates} />
+        return <CompetencyModule competencies={competencies} _canEdit={canEdit} />
+
+
+
+
       case 'aiCompetency':
         return <AICompetencyModule />
       case 'learning':
-        return <LearningModule trainingPrograms={trainingPrograms} addTraining={addTraining} deleteTraining={deleteTraining} />
+        if (!canEdit) return <Dashboard employees={employees} trainingPrograms={trainingPrograms} recognitionAwards={recognitionAwards} successionCandidates={successionCandidates} />
+        return <LearningModule trainingPrograms={trainingPrograms} addTraining={addTraining} canEdit={canEdit} />
       case 'succession':
-        return <SuccessionModule successionCandidates={successionCandidates} employees={employees} />
+        return <SuccessionModule successionCandidates={successionCandidates} employees={employees} canEdit={canEdit} />
+
       case 'recognition':
-        return <RecognitionModule recognitionAwards={recognitionAwards} employees={employees} addRecognition={addRecognition} />
+        return <RecognitionModule recognitionAwards={recognitionAwards} employees={employees} addRecognition={addRecognition} canEdit={canEdit} />
+
       default:
         return <Dashboard employees={employees} trainingPrograms={trainingPrograms} recognitionAwards={recognitionAwards} successionCandidates={successionCandidates} />
     }
@@ -123,8 +140,20 @@ function AppContent() {
           <span className="status-indicator"><span className="status-dot"></span> System Online</span>
         </div>
       </div>
-      <Navbar activeModule={activeModule} setActiveModule={setActiveModule} mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
+      <Navbar
+        activeModule={activeModule}
+        setActiveModule={setActiveModule}
+        mobileMenuOpen={mobileMenuOpen}
+        setMobileMenuOpen={setMobileMenuOpen}
+        userName={role === 'admin' ? 'Admin' : 'Viewer'}
+        role={role}
+      />
       <main className="main-content">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <button className="btn-cancel" onClick={onLogout} type="button">
+            Logout
+          </button>
+        </div>
         {renderModule()}
       </main>
     </div>
@@ -132,16 +161,20 @@ function AppContent() {
 }
 
 // Navbar Component
-function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOpen }) {
+function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOpen, userName, role }) {
   const modules = [
-    { id: 'dashboard', label: 'Dashboard', icon: '●' },
-    { id: 'performance', label: 'Performance', icon: '●' },
-    { id: 'competency', label: 'Competency', icon: '●' },
-    { id: 'aiCompetency', label: 'AI Competency', icon: '●' },
-    { id: 'learning', label: 'Learning & Training', icon: '●' },
-    { id: 'succession', label: 'Succession', icon: '●' },
-    { id: 'recognition', label: 'Recognition', icon: '●' },
+    { id: 'dashboard', label: 'Dashboard', icon: '●', requiresEdit: false },
+    { id: 'performance', label: 'Performance', icon: '●', requiresEdit: true },
+    { id: 'competency', label: 'Competency', icon: '●', requiresEdit: true },
+    { id: 'aiCompetency', label: 'AI Competency', icon: '●', requiresEdit: false },
+    { id: 'learning', label: 'Learning & Training', icon: '●', requiresEdit: true },
+    { id: 'succession', label: 'Succession', icon: '●', requiresEdit: false },
+    { id: 'recognition', label: 'Recognition', icon: '●', requiresEdit: false },
   ]
+
+  // Only show edit-restricted modules to admins.
+  const visibleModules = modules.filter(m => !m.requiresEdit || role === 'admin')
+
 
   return (
     <nav className="navbar">
@@ -155,7 +188,7 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
         <span></span>
       </button>
       <div className={`nav-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-        {modules.map(mod => (
+        {visibleModules.map(mod => (
           <button
             key={mod.id}
             className={`nav-link ${activeModule === mod.id ? 'active' : ''}`}
@@ -168,7 +201,7 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
       </div>
       <div className="nav-user">
         <span className="user-avatar">A</span>
-        <span className="user-name">Admin</span>
+        <span className="user-name">{userName}</span>
       </div>
     </nav>
   )
@@ -180,8 +213,6 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
   const avgCompetency = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.competency, 0) / employees.length) : 0
   const avgTraining = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.training, 0) / employees.length) : 0
   const totalRecognitions = recognitionAwards.length
-  const totalTraining = trainingPrograms.length
-  const totalSuccession = successionCandidates.length
 
   return (
     <div className="dashboard">
@@ -282,7 +313,7 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
 }
 
 // Performance Module
-function PerformanceModule({ employees, addEmployee, updateEmployee, deleteEmployee }) {
+function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, deleteEmployee }) {
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
@@ -304,6 +335,7 @@ function PerformanceModule({ employees, addEmployee, updateEmployee, deleteEmplo
 
   const handleAddEmployee = (e) => {
     e.preventDefault()
+    if (!canEdit) return
     if (newEmp.name && newEmp.role && newEmp.department) {
       addEmployee(newEmp)
       setNewEmp({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80 })
@@ -311,7 +343,9 @@ function PerformanceModule({ employees, addEmployee, updateEmployee, deleteEmplo
     }
   }
 
+
   const handleEditEmployee = () => {
+    if (!canEdit) return
     if (selectedEmployee) {
       const emp = employees.find(e => e.id === selectedEmployee)
       if (emp) {
@@ -321,8 +355,10 @@ function PerformanceModule({ employees, addEmployee, updateEmployee, deleteEmplo
     }
   }
 
+
   const handleUpdateEmployee = (e) => {
     e.preventDefault()
+    if (!canEdit) return
     if (selectedEmployee && newEmp.name) {
       updateEmployee(selectedEmployee, newEmp)
       setShowEditForm(false)
@@ -331,12 +367,15 @@ function PerformanceModule({ employees, addEmployee, updateEmployee, deleteEmplo
     }
   }
 
+
   const handleDeleteEmployee = () => {
+    if (!canEdit) return
     if (selectedEmployee && confirm('Are you sure you want to delete this employee?')) {
       deleteEmployee(selectedEmployee)
       setSelectedEmployee(null)
     }
   }
+
 
   // Filter and sort employees
   const filteredEmployees = [...employees]
@@ -357,7 +396,7 @@ function PerformanceModule({ employees, addEmployee, updateEmployee, deleteEmplo
   const departments = [...new Set(employees.map(e => e.department))]
 
   return (
-    <div className="module">
+    <div className="module" style={canEdit ? undefined : { filter: 'grayscale(0.15)' }}>
       <h1 className="page-title">Performance Management</h1>
       <p className="page-subtitle">Track and evaluate employee performance metrics</p>
 
@@ -397,9 +436,10 @@ function PerformanceModule({ employees, addEmployee, updateEmployee, deleteEmplo
         </div>
 
         <div className="form-section">
-          <button className="btn-add" onClick={() => setShowAddForm(!showAddForm)}>
+          <button className="btn-add" onClick={() => canEdit && setShowAddForm(!showAddForm)} disabled={!canEdit}>
             {showAddForm ? 'Cancel' : '+ Add Employee'}
           </button>
+
           {showAddForm && (
             <form className="data-form" onSubmit={handleAddEmployee}>
               <input type="text" placeholder="Name" value={newEmp.name} onChange={e => setNewEmp({...newEmp, name: e.target.value})} required />
@@ -481,8 +521,21 @@ function PerformanceModule({ employees, addEmployee, updateEmployee, deleteEmplo
                   <td><span className={`status-badge ${emp.performance >= 90 ? 'excellent' : emp.performance >= 80 ? 'good' : 'needs-improvement'}`}>{emp.performance >= 90 ? 'Excellent' : emp.performance >= 80 ? 'Good' : 'Needs Improvement'}</span></td>
                   <td>
                     <div className="action-buttons">
-                      <button className="btn-edit" onClick={(e) => { e.stopPropagation(); setSelectedEmployee(emp.id); handleEditEmployee() }}>Edit</button>
-                      <button className="btn-delete" onClick={(e) => { e.stopPropagation(); setSelectedEmployee(emp.id); handleDeleteEmployee() }}>Delete</button>
+                      <button
+                        className="btn-edit"
+                        onClick={(e) => { e.stopPropagation(); setSelectedEmployee(emp.id); handleEditEmployee() }}
+                        disabled={!canEdit}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn-delete"
+                        onClick={(e) => { e.stopPropagation(); setSelectedEmployee(emp.id); handleDeleteEmployee() }}
+                        disabled={!canEdit}
+                      >
+                        Delete
+                      </button>
+
                     </div>
                   </td>
                 </tr>
@@ -496,7 +549,7 @@ function PerformanceModule({ employees, addEmployee, updateEmployee, deleteEmplo
 }
 
 // Competency Module
-function CompetencyModule({ competencies, employees }) {
+function CompetencyModule({ competencies, _canEdit }) {
   return (
     <div className="module">
       <h1 className="page-title">Competency Management</h1>
@@ -618,12 +671,13 @@ function CompetencyModule({ competencies, employees }) {
 }
 
 // Learning & Training Module
-function LearningModule({ trainingPrograms, addTraining, deleteTraining }) {
+function LearningModule({ trainingPrograms, addTraining, canEdit }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newProg, setNewProg] = useState({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming' })
 
   const handleAddTraining = (e) => {
     e.preventDefault()
+    if (!canEdit) return
     if (newProg.title) {
       addTraining(newProg)
       setNewProg({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming' })
@@ -631,15 +685,17 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining }) {
     }
   }
 
+
   return (
     <div className="module">
       <h1 className="page-title">Learning & Training</h1>
       <p className="page-subtitle">Manage training programs and professional development</p>
 
       <div className="form-section">
-        <button className="btn-add" onClick={() => setShowAddForm(!showAddForm)}>
+        <button className="btn-add" onClick={() => canEdit && setShowAddForm(!showAddForm)} disabled={!canEdit}>
           {showAddForm ? 'Cancel' : '+ Add Training Program'}
         </button>
+
         {showAddForm && (
           <form className="data-form" onSubmit={handleAddTraining}>
             <input type="text" placeholder="Program Title" value={newProg.title} onChange={e => setNewProg({...newProg, title: e.target.value})} required />
@@ -763,11 +819,12 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining }) {
 }
 
 // Succession Module
-function SuccessionModule({ successionCandidates, employees }) {
+function SuccessionModule({ successionCandidates, _employees, canEdit }) {
   return (
-    <div className="module">
+    <div className="module" style={canEdit ? undefined : { opacity: 0.95 }}>
       <h1 className="page-title">Succession Planning</h1>
       <p className="page-subtitle">Identify and develop future leaders for key positions</p>
+
 
       <div className="succession-overview">
         <div className="succession-stat">
@@ -874,12 +931,13 @@ function SuccessionModule({ successionCandidates, employees }) {
 }
 
 // Social Recognition Module
-function RecognitionModule({ recognitionAwards, employees, addRecognition }) {
+function RecognitionModule({ recognitionAwards, _employees, addRecognition, canEdit }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newAward, setNewAward] = useState({ recipient: '', type: 'Employee of Month', department: '', date: new Date().toISOString().split('T')[0], reason: '' })
 
   const handleAddRecognition = (e) => {
     e.preventDefault()
+    if (!canEdit) return
     if (newAward.recipient && newAward.reason) {
       addRecognition(newAward)
       setNewAward({ recipient: '', type: 'Employee of Month', department: '', date: new Date().toISOString().split('T')[0], reason: '' })
@@ -887,15 +945,17 @@ function RecognitionModule({ recognitionAwards, employees, addRecognition }) {
     }
   }
 
+
   return (
     <div className="module">
       <h1 className="page-title">Social Recognition</h1>
       <p className="page-subtitle">Acknowledge and celebrate employee achievements</p>
 
       <div className="form-section">
-        <button className="btn-add" onClick={() => setShowAddForm(!showAddForm)}>
+        <button className="btn-add" onClick={() => canEdit && setShowAddForm(!showAddForm)} disabled={!canEdit}>
           {showAddForm ? 'Cancel' : '+ Add Recognition'}
         </button>
+
         {showAddForm && (
           <form className="data-form" onSubmit={handleAddRecognition}>
             <input type="text" placeholder="Recipient Name" value={newAward.recipient} onChange={e => setNewAward({...newAward, recipient: e.target.value})} required />
@@ -1199,9 +1259,111 @@ function AICompetencyModule() {
   )
 }
 
+// Session helpers
+const getStoredSession = () => {
+  try {
+    const raw = localStorage.getItem('ihims_session')
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+const setStoredSession = (session) => {
+  localStorage.setItem('ihims_session', JSON.stringify(session))
+}
+
+const clearStoredSession = () => {
+  localStorage.removeItem('ihims_session')
+}
+
+function LoginScreen({ onLogin }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+
+  // Simple local-only demo credentials.
+  // - admin / admin123
+  // - viewer / viewer123
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    const u = username.trim().toLowerCase()
+    const p = password
+
+    if (u === 'admin' && p === 'admin123') {
+      onLogin({ role: 'admin', name: 'Admin' })
+      return
+    }
+    if (u === 'viewer' && p === 'viewer123') {
+      onLogin({ role: 'viewer', name: 'Viewer' })
+      return
+    }
+
+    setError('Invalid username or password')
+  }
+
+  return (
+    <div className="module" style={{ maxWidth: 520, margin: '40px auto', padding: 24 }}>
+      <h1 className="page-title">IHIMS Login</h1>
+      <p className="page-subtitle" style={{ marginBottom: 16 }}>Admin can manage data. Viewer is read-only.</p>
+
+      <form onSubmit={handleSubmit} className="data-form" style={{ marginTop: 0 }}>
+        <input
+          type="text"
+          placeholder="Username (admin or viewer)"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password (admin123 or viewer123)"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button type="submit" className="btn-save">Login</button>
+          {error ? <span style={{ color: '#dc2626', fontWeight: 600 }}>{error}</span> : null}
+        </div>
+      </form>
+    </div>
+  )
+}
+
 // Main App Component
 function App() {
-  return <AppContent />
+  const [session, setSession] = useState(() => getStoredSession())
+
+  const handleLogin = (s) => {
+    setStoredSession({ ...s })
+    setSession(s)
+  }
+
+  const handleLogout = () => {
+    clearStoredSession()
+    setSession(null)
+  }
+
+  // Wrap AppContent with a role-aware controller.
+  // Viewer must not be able to create/update/delete data.
+  const role = session?.role || 'viewer'
+  const canEdit = role === 'admin'
+
+  return (
+    <div>
+      {!session ? (
+        <LoginScreen onLogin={handleLogin} />
+      ) : (
+        <AppContent
+          role={role}
+          canEdit={canEdit}
+          onLogout={handleLogout}
+          setActiveModuleFromRole={(id) => id}
+        />
+      )}
+    </div>
+  )
 }
 
 export default App
