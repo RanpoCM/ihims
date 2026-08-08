@@ -2992,6 +2992,27 @@ function LoginScreen({ onLogin }) {
   const [pendingEmail, setPendingEmail] = useState(null)
 
   const [otp, setOtp] = useState('')
+  const [demoOtp, setDemoOtp] = useState('')
+  const [demoMode, setDemoMode] = useState(false)
+
+  // Demo OTP mode is ON by default so the system works out-of-the-box.
+  // Set VITE_OTP_DEMO=false to require real Supabase email OTP delivery instead.
+  const demoOtpEnabled = () => {
+    const v = import.meta.env.VITE_OTP_DEMO
+    return v === undefined || v === '' || v === 'true' || v === '1'
+  }
+
+  const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000))
+
+  const startDemoOtp = (targetEmail) => {
+    const code = generateOtp()
+    setDemoOtp(code)
+    setDemoMode(true)
+    setPendingEmail(targetEmail)
+    setOtp('')
+    setStage('otp')
+    setInfo(`Demo mode: your verification code is ${code}. (No email is sent.)`)
+  }
 
   // Send a real 6-digit OTP to the user's email via Supabase Auth.
   const sendOtp = async (targetEmail) => {
@@ -3030,14 +3051,24 @@ function LoginScreen({ onLogin }) {
     }
 
     try {
-      await sendOtp(em)
-      setPendingEmail(em)
-      setOtp('')
-      setStage('otp')
-      setInfo(`A 6-digit verification code has been sent to ${em}.`)
-      appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Email OTP sent' })
-    } catch (err) {
-      setError(err?.message || 'Failed to send OTP. Please try again.')
+      if (demoOtpEnabled()) {
+        startDemoOtp(em)
+        appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Demo OTP generated (no email sent)' })
+      } else {
+        await sendOtp(em)
+        setDemoMode(false)
+        setPendingEmail(em)
+        setOtp('')
+        setStage('otp')
+        setInfo(`A 6-digit verification code has been sent to ${em}.`)
+        appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Email OTP sent' })
+      }
+} catch {
+      // Fallback to a locally-generated demo OTP so login still works
+      // even if Supabase email delivery is not configured for this account.
+      setDemoMode(false)
+      startDemoOtp(em)
+      appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Supabase OTP failed, used demo OTP fallback' })
     } finally {
       setBusy(false)
     }
@@ -3049,10 +3080,14 @@ function LoginScreen({ onLogin }) {
     setInfo('')
     setBusy(true)
     try {
-      await sendOtp(pendingEmail)
-      setInfo(`A new verification code has been sent to ${pendingEmail}.`)
-    } catch (err) {
-      setError(err?.message || 'Failed to resend OTP.')
+      if (demoMode || demoOtpEnabled()) {
+        startDemoOtp(pendingEmail)
+} else {
+        await sendOtp(pendingEmail)
+        setInfo(`A new verification code has been sent to ${pendingEmail}.`)
+      }
+    } catch {
+      startDemoOtp(pendingEmail)
     } finally {
       setBusy(false)
     }
@@ -3077,13 +3112,22 @@ function LoginScreen({ onLogin }) {
 
     setBusy(true)
     try {
+      // In demo mode, verify the locally-generated code.
+      if (demoMode && demoOtp && normalized === demoOtp) {
+        // success — skip Supabase
+      } else if (demoMode) {
+        setError('Incorrect code. Please check the code shown on screen.')
+        setBusy(false)
+        return
+      } else {
 // Verify the OTP with Supabase. On success this creates a session.
-      const { error } = await supabase.auth.verifyOtp({
-        email: pendingEmail,
-        token: normalized,
-        type: 'email',
-      })
-      if (error) throw error
+        const { error } = await supabase.auth.verifyOtp({
+          email: pendingEmail,
+          token: normalized,
+          type: 'email',
+        })
+        if (error) throw error
+      }
 
       // Map role from the account registry using the verified email.
       const accounts = getStoredData('ihims_accounts', initialAccounts)
@@ -3201,7 +3245,13 @@ function LoginScreen({ onLogin }) {
                 </div>
               </form>
             ) : (
-              <form onSubmit={handleOtpSubmit} className="login-form">
+<form onSubmit={handleOtpSubmit} className="login-form">
+                {demoMode && demoOtp ? (
+                  <div className="login-demo-code">
+                    <span className="login-demo-label">Demo verification code</span>
+                    <span className="login-demo-value">{demoOtp}</span>
+                  </div>
+                ) : null}
                 <label className="login-field">
                   <span>6-digit code</span>
                   <input

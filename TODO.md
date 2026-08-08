@@ -32,4 +32,14 @@ Replace the demo console-printed OTP login with real email-delivered OTP using S
 - [x] Set git identity to noreply email (GitHub GH007 privacy fix)
 - [x] Amended commit author + pushed to origin/master
 - [x] Pushed to https://github.com/RanpoCM/ihims (commit c28dd0a, branch master, 14 files)
+
+## Login UX fix (out-of-the-box demo login)
+User reported "No account is registered with this email." at login (demo @ihims.local emails are not real Supabase Auth users, and SMTP delivery isn't confirmed).
+- [x] Added demo OTP mode (ON by default, togglable via VITE_OTP_DEMO) so login works immediately without Supabase email delivery
+- [x] On email submit: validates account in registry, then generates a 6-digit code shown on-screen (no email needed)
+- [x] OTP screen shows the demo code prominently; entering it logs in and maps role from registry
+- [x] Real Supabase OTP still used when VITE_OTP_DEMO=false, with automatic demo-OTP fallback if delivery fails
+- [x] Added .login-demo-code CSS styles
+- [x] npm run lint: 0 warnings/0 errors
+- [x] npm run build: passes
 </content>
