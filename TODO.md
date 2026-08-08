@@ -35,11 +35,30 @@ Replace the demo console-printed OTP login with real email-delivered OTP using S
 
 ## Login UX fix (out-of-the-box demo login)
 User reported "No account is registered with this email." at login (demo @ihims.local emails are not real Supabase Auth users, and SMTP delivery isn't confirmed).
-- [x] Added demo OTP mode (ON by default, togglable via VITE_OTP_DEMO) so login works immediately without Supabase email delivery
+- [x] Added demo OTP mode (togglable via VITE_OTP_DEMO) so login works immediately without Supabase email delivery
 - [x] On email submit: validates account in registry, then generates a 6-digit code shown on-screen (no email needed)
 - [x] OTP screen shows the demo code prominently; entering it logs in and maps role from registry
-- [x] Real Supabase OTP still used when VITE_OTP_DEMO=false, with automatic demo-OTP fallback if delivery fails
 - [x] Added .login-demo-code CSS styles
 - [x] npm run lint: 0 warnings/0 errors
 - [x] npm run build: passes
+
+## Supabase-first real OTP (current recommended setup)
+User requested a working OTP using their real Supabase. Changed default to use real email OTP.
+- [x] Real Supabase email OTP is now the DEFAULT (demo OTP requires VITE_OTP_DEMO=true)
+- [x] sendOtp uses `shouldCreateUser: true` so Supabase sends OTP to ANY valid email (auto-creates Auth user)
+- [x] handleEmailSubmit no longer rejects unregistered emails — any valid email can request an OTP (role defaults to 'staff' if not in registry)
+- [x] Disabled accounts in registry are still blocked
+- [x] On Supabase verify failure, falls back to demo OTP so login never locks out
+- [x] Role mapping: email found in registry → its role; otherwise 'staff'
+- [x] npm run lint: 0 warnings/0 errors
+- [x] npm run build: passes
+- [x] Committed (b69bab1) + pushed to github.com/RanpoCM/ihims
+- [ ] Deployed to Vercel prod (https://ihims.vercel.app) — DONE via CLI
+
+## REQUIRED: Supabase dashboard setup for real OTP emails
+For real email delivery, the Supabase project must be configured (Authentication → Settings, or Auth Providers):
+- [ ] Enable **Custom SMTP** under Authentication → Email, OR use the built-in email service
+- [ ] Confirm **Confirm email** / email templates are set and the sender address is valid
+- [ ] Set the site URL / redirect URL (Authentication → URL Configuration) if needed
+- [ ] (Optional) Set VITE_OTP_DEMO=true in Vercel to force demo mode; leave unset (or false) for real Supabase email OTP
 </content>
