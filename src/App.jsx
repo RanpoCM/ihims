@@ -2995,11 +2995,11 @@ function LoginScreen({ onLogin }) {
   const [demoOtp, setDemoOtp] = useState('')
   const [demoMode, setDemoMode] = useState(false)
 
-  // Demo OTP mode is ON by default so the system works out-of-the-box.
-  // Set VITE_OTP_DEMO=false to require real Supabase email OTP delivery instead.
+// Real Supabase email OTP is used by default.
+  // Set VITE_OTP_DEMO=true only to fall back to a locally-shown demo code.
   const demoOtpEnabled = () => {
     const v = import.meta.env.VITE_OTP_DEMO
-    return v === undefined || v === '' || v === 'true' || v === '1'
+    return v === 'true' || v === '1'
   }
 
   const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000))
@@ -3015,10 +3015,12 @@ function LoginScreen({ onLogin }) {
   }
 
   // Send a real 6-digit OTP to the user's email via Supabase Auth.
+  // shouldCreateUser:true lets Supabase send OTP to any address (and create
+  // an Auth user for it), so no manual user provisioning is required.
   const sendOtp = async (targetEmail) => {
     const { error } = await supabase.auth.signInWithOtp({
       email: targetEmail,
-      options: { shouldCreateUser: false },
+      options: { shouldCreateUser: true },
     })
     if (error) throw error
   }
@@ -3032,18 +3034,13 @@ function LoginScreen({ onLogin }) {
     setInfo('')
     setBusy(true)
 
-    // Look up the account by email so we can map the role after verification.
+// Look up the account by email to map the role after verification.
     const accounts = getStoredData('ihims_accounts', initialAccounts)
     const account = accounts.find((a) => (a.email || '').toLowerCase() === em)
 
-    if (!account) {
-      setBusy(false)
-      appendAudit({ user: em, role: 'unknown', action: 'login_failed', module: 'auth', detail: 'Email not found in registry' })
-      setError('No account is registered with this email. Contact an administrator.')
-      return
-    }
-
-    if (account.status !== 'active') {
+    // Allow any valid email to request a Supabase OTP. If it matches a
+    // registered account, use its role; otherwise default to 'staff'.
+    if (account && account.status !== 'active') {
       setBusy(false)
       appendAudit({ user: em, role: account.role, action: 'login_failed', module: 'auth', detail: 'Account disabled' })
       setError('This account is disabled. Contact an administrator.')
@@ -3053,7 +3050,7 @@ function LoginScreen({ onLogin }) {
     try {
       if (demoOtpEnabled()) {
         startDemoOtp(em)
-        appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Demo OTP generated (no email sent)' })
+        appendAudit({ user: em, role: account?.role || 'staff', action: 'login_attempt', module: 'auth', detail: 'Demo OTP generated (no email sent)' })
       } else {
         await sendOtp(em)
         setDemoMode(false)
@@ -3061,14 +3058,14 @@ function LoginScreen({ onLogin }) {
         setOtp('')
         setStage('otp')
         setInfo(`A 6-digit verification code has been sent to ${em}.`)
-        appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Email OTP sent' })
+        appendAudit({ user: em, role: account?.role || 'staff', action: 'login_attempt', module: 'auth', detail: 'Email OTP sent' })
       }
 } catch {
       // Fallback to a locally-generated demo OTP so login still works
       // even if Supabase email delivery is not configured for this account.
       setDemoMode(false)
       startDemoOtp(em)
-      appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Supabase OTP failed, used demo OTP fallback' })
+      appendAudit({ user: em, role: account?.role || 'staff', action: 'login_attempt', module: 'auth', detail: 'Supabase OTP failed, used demo OTP fallback' })
     } finally {
       setBusy(false)
     }
@@ -3129,7 +3126,9 @@ function LoginScreen({ onLogin }) {
         if (error) throw error
       }
 
-      // Map role from the account registry using the verified email.
+// Map role from the account registry using the verified email.
+      // If the email isn't in the registry (e.g. a brand-new Supabase user),
+      // fall back to a default 'staff' role so login still completes.
       const accounts = getStoredData('ihims_accounts', initialAccounts)
       const account = accounts.find((a) => (a.email || '').toLowerCase() === pendingEmail)
       const role = account?.role || 'staff'
@@ -3240,8 +3239,10 @@ function LoginScreen({ onLogin }) {
                   {busy ? 'Sending code…' : 'Send Verification Code →'}
                 </button>
 
-                <div className="login-demo-hint">
+<div className="login-demo-hint">
                   <strong>Demo accounts:</strong> admin@ihims.local • hr@ihims.local • staff@ihims.local
+                  <br />
+                  Use any email you can receive mail at — a one-time code will be sent to it.
                 </div>
               </form>
             ) : (
