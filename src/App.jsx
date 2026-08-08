@@ -3014,15 +3014,41 @@ function LoginScreen({ onLogin }) {
     setInfo(`Demo mode: your verification code is ${code}. (No email is sent.)`)
   }
 
-  // Send a real 6-digit OTP to the user's email via Supabase Auth.
+// Send a real 6-digit OTP to the user's email via Supabase Auth.
   // shouldCreateUser:true lets Supabase send OTP to any address (and create
   // an Auth user for it), so no manual user provisioning is required.
+  // We call the Auth REST endpoint directly so that the real GoTrue error
+  // body (e.g. "Error sending confirmation email") is surfaced instead of a
+  // generic "Failed to fetch".
   const sendOtp = async (targetEmail) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email: targetEmail,
-      options: { shouldCreateUser: true },
+    const url = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
+    if (!url || !key) {
+      throw new Error('SUPABASE_URL and a Supabase key are not configured.')
+    }
+    const res = await fetch(`${url.replace(/\/$/, '')}/auth/v1/otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        email: targetEmail,
+        options: { shouldCreateUser: true },
+      }),
     })
-    if (error) throw error
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`
+      try {
+        const body = await res.json()
+        if (body?.msg) detail = `${detail} — ${body.msg}`
+        if (body?.error_code) detail = `${detail} (${body.error_code})`
+      } catch {
+        // ignore parse errors
+      }
+      throw new Error(detail)
+    }
   }
 
   const handleEmailSubmit = async (e) => {
