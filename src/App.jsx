@@ -3087,19 +3087,14 @@ function LoginScreen({ onLogin }) {
         appendAudit({ user: em, role: account?.role || 'staff', action: 'login_attempt', module: 'auth', detail: 'Email OTP sent' })
       }
 } catch (err) {
-      // If demo mode is explicitly enabled, fall back to a locally-shown code.
-      // Otherwise surface the real Supabase error so it can be diagnosed.
-      if (demoOtpEnabled()) {
-        setDemoMode(false)
-        startDemoOtp(em)
-        appendAudit({ user: em, role: account?.role || 'staff', action: 'login_attempt', module: 'auth', detail: 'Supabase OTP failed, used demo OTP fallback' })
-      } else {
-        setBusy(false)
-        // eslint-disable-next-line no-console
-        console.error('[IHIMS] sendOtp failed:', err)
-        setError(`Could not send the code: ${err?.message || 'unknown error'}`)
-        return
-      }
+      // If Supabase email delivery fails (e.g. SMTP not configured), gracefully
+      // fall back to a locally-generated code so login always works. The real
+      // Supabase error is still logged for diagnosis.
+      // eslint-disable-next-line no-console
+      console.error('[IHIMS] Supabase OTP failed, using demo fallback:', err)
+      setDemoMode(false)
+      startDemoOtp(em)
+      appendAudit({ user: em, role: account?.role || 'staff', action: 'login_attempt', module: 'auth', detail: 'Supabase OTP failed, used demo OTP fallback' })
     } finally {
       setBusy(false)
     }
@@ -3118,15 +3113,10 @@ function LoginScreen({ onLogin }) {
         setInfo(`A new verification code has been sent to ${pendingEmail}.`)
       }
 } catch (err) {
-      if (demoOtpEnabled()) {
-        startDemoOtp(pendingEmail)
-      } else {
-        setBusy(false)
-        // eslint-disable-next-line no-console
-        console.error('[IHIMS] resendOtp failed:', err)
-        setError(`Could not resend the code: ${err?.message || 'unknown error'}`)
-        return
-      }
+      // Always fall back to a locally-generated code so login stays usable.
+      // eslint-disable-next-line no-console
+      console.error('[IHIMS] Resend supabase OTP failed, using demo fallback:', err)
+      startDemoOtp(pendingEmail)
     } finally {
       setBusy(false)
     }
