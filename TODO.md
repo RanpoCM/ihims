@@ -26,4 +26,10 @@ Replace the demo console-printed OTP login with real email-delivered OTP using S
 - [x] Deployed to https://ihims.vercel.app (200 OK, root + bundle present)
 - [ ] Confirm Supabase Auth email provider (SMTP) configured so OTP emails are actually sent
 - [ ] Confirm users (admin@ihims.local etc.) exist as Supabase Auth users matching registry emails
+
+## GitHub push
+- [x] Authenticated GitHub (gh auth / PAT)
+- [x] Set git identity to noreply email (GitHub GH007 privacy fix)
+- [x] Amended commit author + pushed to origin/master
+- [x] Pushed to https://github.com/RanpoCM/ihims (commit c28dd0a, branch master, 14 files)
 </content>
