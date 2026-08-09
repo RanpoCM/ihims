@@ -3641,10 +3641,19 @@ const [stage, setStage] = useState('email') // 'email' | 'otp' | 'register'
   const [demoOtp, setDemoOtp] = useState('')
   const [demoMode, setDemoMode] = useState(false)
 
-  // First-run admin registration fields
+// First-run admin registration fields
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [regName, setRegName] = useState('')
+
+  // Only offer to "Set up your admin account" when no admin has been created
+  // yet (brand-new browser / first run). If an admin already exists in the
+  // stored registry, hide the registration path — use the demo admin or ask an
+  // existing admin to add you instead.
+  const hasExistingAdmin = useMemo(() => {
+    const stored = getStoredData(ACCOUNTS_KEY, [])
+    return Array.isArray(stored) && stored.some((a) => a && a.role === 'admin')
+  }, [])
 
 // Real Supabase email OTP is used by default.
   // Set VITE_OTP_DEMO=true only to fall back to a locally-shown demo code.
@@ -3954,7 +3963,7 @@ const featureCards = [
               </p>
             </div>
 
-{stage === 'register' ? (
+{stage === 'register' && !hasExistingAdmin ? (
               <form onSubmit={handleRegisterSubmit} className="login-form">
                 <label className="login-field">
                   <span>Your email</span>
@@ -4031,10 +4040,15 @@ const featureCards = [
 <div className="login-demo-hint">
                   <strong>Demo accounts:</strong> admin@ihims.local • hr@ihims.local • staff@ihims.local
                   <br />
-                  Only accounts created by an administrator can sign in. First time here?{' '}
-                  <button type="button" className="login-link-btn" onClick={() => { setStage('register'); setError(''); setInfo('') }}>
-                    Set up your admin account
-                  </button>
+                  Only accounts created by an administrator can sign in.
+                  {!hasExistingAdmin ? (
+                    <>
+                      {' '}First time here?{' '}
+                      <button type="button" className="login-link-btn" onClick={() => { setStage('register'); setError(''); setInfo('') }}>
+                        Set up your admin account
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </form>
             ) : (
