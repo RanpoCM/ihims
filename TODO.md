@@ -11,6 +11,9 @@ Replace placeholder text/emoji icons with a clean, consistent SVG icon system an
 - [x] Polish `src/App.css` — icon sizing/transitions, subtle UI refinements
 - [x] Run `npm run build` to verify it passes ✓
 - [x] Run `npm run lint` to verify 0 warnings/errors ✓
-- [ ] Commit changes
-- [ ] Push to `github.com/RanpoCM/ihims` (origin/master)
+- [x] Commit changes (commit 062a7ff)
+- [x] Push to `github.com/RanpoCM/ihims` (origin/master ✓)
+
+## Done
+The unified SVG icon system and UI polish are complete, committed, and pushed to GitHub.
 
