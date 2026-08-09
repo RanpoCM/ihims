@@ -745,29 +745,40 @@ const addCompetency = (comp) => {
     appendAudit({ user: actor.name, role, action: 'delete', module: 'succession', detail: `Deleted succession plan "${target?.currentRole || id}"` })
   }
 
-  const addAccount = (acc) => {
+const addAccount = (acc) => {
     requireEdit(role, 'accounts')
-    const username = acc.username.trim().toLowerCase()
-    if (!username || !acc.password) {
-      throw new Error('Username and password are required')
+    const email = (acc.email || '').trim().toLowerCase()
+    const username = (acc.username || '').trim().toLowerCase()
+    if (!email || !acc.password) {
+      throw new Error('Email and password are required')
     }
-    if (accounts.some((a) => a.username === username)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error(`"${email}" is not a valid email address`)
+    }
+    if (accounts.some((a) => (a.email || '').toLowerCase() === email)) {
+      throw new Error(`An account with email "${email}" already exists`)
+    }
+    if (username && accounts.some((a) => a.username === username)) {
       throw new Error(`An account with username "${username}" already exists`)
     }
-    const newRow = { ...acc, username, id: nextId(accounts) }
+    const newRow = { ...acc, email, username, id: nextId(accounts) }
     setAccounts((prev) => [...prev, newRow])
-    appendAudit({ user: actor.name, role, action: 'create', module: 'accounts', detail: `Created account "${username}"` })
+    appendAudit({ user: actor.name, role, action: 'create', module: 'accounts', detail: `Created account "${email}"` })
   }
 
   const updateAccount = (id, data) => {
     requireEdit(role, 'accounts')
     const target = accounts.find((a) => a.id === id)
-    const username = data.username.trim().toLowerCase()
+    const email = (data.email || '').trim().toLowerCase()
+    const username = (data.username || '').trim().toLowerCase()
+    if (email && accounts.some((a) => (a.email || '').toLowerCase() === email && a.id !== id)) {
+      throw new Error(`An account with email "${email}" already exists`)
+    }
     if (username && accounts.some((a) => a.username === username && a.id !== id)) {
       throw new Error(`An account with username "${username}" already exists`)
     }
-    setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, ...data, username: username || a.username } : a)))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'accounts', detail: `Updated account "${target?.username || id}"` })
+    setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, ...data, email: email || a.email, username: username || a.username } : a)))
+    appendAudit({ user: actor.name, role, action: 'update', module: 'accounts', detail: `Updated account "${target?.email || target?.username || id}"` })
   }
 
 const deleteAccount = (id) => {
@@ -2960,15 +2971,15 @@ const _generateReply = (q, ctx) => {
 
 // Accounts Module (admin-only)
 function AccountsModule({ accounts, canEdit, addAccount, updateAccount, deleteAccount }) {
-  const [showAddForm, setShowAddForm] = useState(false)
+const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [editId, setEditId] = useState(null)
   const [formMsg, setFormMsg] = useState('')
   const [formError, setFormError] = useState('')
-  const [newAcc, setNewAcc] = useState({ username: '', password: '', role: 'staff', status: 'active', name: '' })
+  const [newAcc, setNewAcc] = useState({ username: '', password: '', role: 'staff', status: 'active', name: '', email: '' })
 
   const resetForm = () => {
-    setNewAcc({ username: '', password: '', role: 'staff', status: 'active', name: '' })
+    setNewAcc({ username: '', password: '', role: 'staff', status: 'active', name: '', email: '' })
     setFormMsg('')
     setFormError('')
     setShowAddForm(false)
@@ -2981,7 +2992,7 @@ function AccountsModule({ accounts, canEdit, addAccount, updateAccount, deleteAc
     if (!canEdit) return
     try {
       addAccount(newAcc)
-      setFormMsg(`Account "${newAcc.username}" created successfully.`)
+      setFormMsg(`Account "${newAcc.username || newAcc.email}" created successfully.`)
       resetForm()
     } catch (err) {
       setFormError(err.message || 'Failed to create account')
@@ -3002,7 +3013,7 @@ function AccountsModule({ accounts, canEdit, addAccount, updateAccount, deleteAc
 
   const startEdit = (acc) => {
     setEditId(acc.id)
-    setNewAcc({ username: acc.username, password: acc.password, role: acc.role, status: acc.status, name: acc.name || '' })
+    setNewAcc({ username: acc.username, password: acc.password, role: acc.role, status: acc.status, name: acc.name || '', email: acc.email || '' })
     setShowEditForm(true)
     setShowAddForm(false)
     setFormMsg('')
@@ -3015,10 +3026,11 @@ function AccountsModule({ accounts, canEdit, addAccount, updateAccount, deleteAc
       setFormError('Cannot delete the last admin account.')
       return
     }
-    if (confirm(`Delete account "${acc.username}"?`)) {
+const accLabel = acc.email || acc.username || acc.id
+    if (confirm(`Delete account "${accLabel}"?`)) {
       try {
         deleteAccount(acc.id)
-        setFormMsg(`Account "${acc.username}" deleted.`)
+        setFormMsg(`Account "${accLabel}" deleted.`)
       } catch (err) {
         setFormError(err.message || 'Failed to delete account')
       }
@@ -3038,9 +3050,10 @@ function AccountsModule({ accounts, canEdit, addAccount, updateAccount, deleteAc
           {showAddForm ? 'Cancel' : '+ Add Account'}
         </button>
 
-        {showAddForm && (
+{showAddForm && (
           <form className="data-form" onSubmit={handleAdd}>
-            <input type="text" placeholder="Username" value={newAcc.username} onChange={(e) => setNewAcc({ ...newAcc, username: e.target.value })} required />
+            <input type="email" placeholder="Email (login email)" value={newAcc.email} onChange={(e) => setNewAcc({ ...newAcc, email: e.target.value })} required />
+            <input type="text" placeholder="Username" value={newAcc.username} onChange={(e) => setNewAcc({ ...newAcc, username: e.target.value })} />
             <input type="text" placeholder="Display name" value={newAcc.name} onChange={(e) => setNewAcc({ ...newAcc, name: e.target.value })} />
             <input type="text" placeholder="Password" value={newAcc.password} onChange={(e) => setNewAcc({ ...newAcc, password: e.target.value })} required />
             <select value={newAcc.role} onChange={(e) => setNewAcc({ ...newAcc, role: e.target.value })}>
@@ -3057,11 +3070,12 @@ function AccountsModule({ accounts, canEdit, addAccount, updateAccount, deleteAc
         )}
       </div>
 
-      {showEditForm && (
+{showEditForm && (
         <div className="edit-form">
           <h3>Edit Account</h3>
           <form className="data-form" onSubmit={handleEditSave}>
-            <input type="text" placeholder="Username" value={newAcc.username} onChange={(e) => setNewAcc({ ...newAcc, username: e.target.value })} required />
+            <input type="email" placeholder="Email (login email)" value={newAcc.email} onChange={(e) => setNewAcc({ ...newAcc, email: e.target.value })} required />
+            <input type="text" placeholder="Username" value={newAcc.username} onChange={(e) => setNewAcc({ ...newAcc, username: e.target.value })} />
             <input type="text" placeholder="Display name" value={newAcc.name} onChange={(e) => setNewAcc({ ...newAcc, name: e.target.value })} />
             <input type="text" placeholder="Password" value={newAcc.password} onChange={(e) => setNewAcc({ ...newAcc, password: e.target.value })} required />
             <select value={newAcc.role} onChange={(e) => setNewAcc({ ...newAcc, role: e.target.value })}>
@@ -3083,9 +3097,10 @@ function AccountsModule({ accounts, canEdit, addAccount, updateAccount, deleteAc
 
       <div className="performance-table-panel">
         <h2 className="panel-title">Login Accounts ({accounts.length})</h2>
-        <table className="performance-table">
+<table className="performance-table">
           <thead>
             <tr>
+              <th>Email</th>
               <th>Username</th>
               <th>Name</th>
               <th>Role</th>
@@ -3096,7 +3111,8 @@ function AccountsModule({ accounts, canEdit, addAccount, updateAccount, deleteAc
           <tbody>
             {accounts.map((acc) => (
               <tr key={acc.id}>
-                <td><strong>{acc.username}</strong></td>
+                <td><strong>{acc.email || '—'}</strong></td>
+                <td>{acc.username || '—'}</td>
                 <td>{acc.name || '—'}</td>
                 <td><span className={`status-badge ${acc.role === 'admin' ? 'excellent' : acc.role === 'hr' ? 'good' : 'needs-improvement'}`}>{roleLabel(acc.role)}</span></td>
                 <td><span className={`status-badge ${acc.status === 'active' ? 'excellent' : 'needs-improvement'}`}>{acc.status}</span></td>
@@ -3655,9 +3671,17 @@ function LoginScreen({ onLogin }) {
       (a) => (a.email || '').toLowerCase() === em || (a.username || '').toLowerCase() === em
     )
 
-    // Allow any valid email to request a Supabase OTP. If it matches a
-    // registered account, use its role; otherwise default to 'staff'.
-    if (account && account.status !== 'active') {
+    // Accounts must be provisioned by an administrator BEFORE they can log in.
+    // If the email is not in the registry, reject the request. This ensures
+    // only pre-approved users (with a defined role) can access the system.
+    if (!account) {
+      setBusy(false)
+      appendAudit({ user: em, role: 'unknown', action: 'login_failed', module: 'auth', detail: 'No account registered for this email' })
+      setError('No account is registered with this email. Ask an administrator to create your account first.')
+      return
+    }
+
+    if (account.status !== 'active') {
       setBusy(false)
       appendAudit({ user: em, role: account.role, action: 'login_failed', module: 'auth', detail: 'Account disabled' })
       setError('This account is disabled. Contact an administrator.')
@@ -3667,7 +3691,7 @@ function LoginScreen({ onLogin }) {
     try {
       if (demoOtpEnabled()) {
         startDemoOtp(em)
-        appendAudit({ user: em, role: account?.role || 'staff', action: 'login_attempt', module: 'auth', detail: 'Demo OTP generated (no email sent)' })
+        appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Demo OTP generated (no email sent)' })
       } else {
         await sendOtp(em)
         setDemoMode(false)
@@ -3675,7 +3699,7 @@ function LoginScreen({ onLogin }) {
         setOtp('')
         setStage('otp')
         setInfo(`A 6-digit verification code has been sent to ${em}.`)
-        appendAudit({ user: em, role: account?.role || 'staff', action: 'login_attempt', module: 'auth', detail: 'Email OTP sent' })
+        appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Email OTP sent' })
       }
 } catch (err) {
       // If Supabase email delivery fails (e.g. SMTP not configured), gracefully
@@ -3685,7 +3709,7 @@ function LoginScreen({ onLogin }) {
       console.error('[IHIMS] Supabase OTP failed, using demo fallback:', err)
       setDemoMode(false)
       startDemoOtp(em)
-      appendAudit({ user: em, role: account?.role || 'staff', action: 'login_attempt', module: 'auth', detail: 'Supabase OTP failed, used demo OTP fallback' })
+      appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Supabase OTP failed, used demo OTP fallback' })
     } finally {
       setBusy(false)
     }
@@ -3725,10 +3749,9 @@ function LoginScreen({ onLogin }) {
     }
 
 const normalized = otp.trim()
-    // Supabase can generate 6- or 8-digit OTP codes depending on its config,
-    // so accept a variable-length numeric code (6-8 digits).
-    if (!normalized || normalized.length < 6 || normalized.length > 8) {
-      setError('Enter the 6-8 digit code')
+    // Accept a 6-digit numeric code.
+    if (!normalized || normalized.length !== 6) {
+      setError('Enter the 6-digit code')
       return
     }
 
@@ -3751,15 +3774,23 @@ const normalized = otp.trim()
         if (error) throw error
       }
 
-// Map role from the account registry using the verified email (falling back
-      // to username). If the email isn't in the registry (e.g. a brand-new
-      // Supabase user), fall back to a default 'staff' role so login completes.
+// Map role from the account registry using the verified email (falling
+      // back to username). The account must already exist (created by an
+      // admin) — this is enforced during the email stage, and re-checked here.
       const accounts = getAccountsWithSeeds()
       const account = accounts.find(
         (a) => (a.email || '').toLowerCase() === pendingEmail || (a.username || '').toLowerCase() === pendingEmail
       )
-      const role = account?.role || 'staff'
-      const name = account?.name || roleLabel(role)
+      if (!account || account.status !== 'active') {
+        setError('Your account was not found or is disabled. Contact an administrator.')
+        setStage('email')
+        setPendingEmail(null)
+        setOtp('')
+        setBusy(false)
+        return
+      }
+      const role = account.role
+      const name = account.name || roleLabel(role)
 
       appendAudit({ user: pendingEmail, role, action: 'login', module: 'auth', detail: `Successful login as ${roleLabel(role)}` })
       onLogin({ role, name, email: pendingEmail })
@@ -3873,7 +3904,7 @@ const featureCards = [
 <div className="login-demo-hint">
                   <strong>Demo accounts:</strong> admin@ihims.local • hr@ihims.local • staff@ihims.local
                   <br />
-                  Use any email you can receive mail at — a one-time code will be sent to it.
+                  Only accounts created by an administrator can sign in. Ask your admin to add your email first.
                 </div>
               </form>
             ) : (
@@ -3885,15 +3916,15 @@ const featureCards = [
                   </div>
                 ) : null}
 <label className="login-field">
-                  <span>Verification code</span>
+                  <span>6-digit code</span>
                   <input
                     type="text"
-                    placeholder="••••••••"
+                    placeholder="••••••"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     inputMode="numeric"
-                    pattern="[0-9]{6,8}"
-                    maxLength="8"
+                    pattern="[0-9]{6}"
+                    maxLength="6"
                     required
                   />
                 </label>
