@@ -202,6 +202,9 @@ const initialAccounts = [
   { id: 1, username: 'admin', password: 'admin123', role: 'admin', status: 'active', name: 'Administrator', email: 'admin@ihims.local' },
   { id: 2, username: 'hr', password: 'hr123', role: 'hr', status: 'active', name: 'HR Manager', email: 'hr@ihims.local' },
   { id: 3, username: 'staff', password: 'staff123', role: 'staff', status: 'active', name: 'Staff Member', email: 'staff@ihims.local' },
+  // Owner admin accounts — these Gmail addresses always have admin access.
+  { id: 4, username: 'carlos18miguel', password: '', role: 'admin', status: 'active', name: 'Carlos Miguel', email: 'carlos18miguel@gmail.com' },
+  { id: 5, username: 'ihimsadmin', password: '', role: 'admin', status: 'active', name: 'IHIMS Admin', email: 'ihimsadmin@gmail.com' },
 ]
 
 const initialAnnouncements = [
