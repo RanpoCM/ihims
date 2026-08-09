@@ -118,6 +118,47 @@ const getAccountsWithSeeds = () => {
 
 
 // ---------------------------------------------------------------------------
+// First-run bootstrap: create an admin account directly so the owner can log
+// in with a real Gmail immediately without first using the seeded demo admin.
+// Writes straight to the account registry (localStorage) and broadcasts it so
+// open tabs stay in sync.
+// ---------------------------------------------------------------------------
+const ACCOUNTS_KEY = 'ihims_accounts'
+
+const createBootstrapAccount = (acc) => {
+  const accounts = getStoredData(ACCOUNTS_KEY, initialAccounts)
+  const email = (acc.email || '').trim().toLowerCase()
+  const username = (acc.username || '').trim().toLowerCase()
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error('Enter a valid email address.')
+  }
+  if (!acc.password || acc.password.length < 6) {
+    throw new Error('Password must be at least 6 characters.')
+  }
+  if (username && accounts.some((a) => a.username === username)) {
+    throw new Error(`An account with username "${username}" already exists.`)
+  }
+  if (accounts.some((a) => (a.email || '').toLowerCase() === email)) {
+    throw new Error(`An account with email "${email}" already exists.`)
+  }
+
+  const id = accounts.length ? Math.max(...accounts.map((a) => Number(a.id) || 0)) + 1 : 1
+  const newRow = {
+    id,
+    email,
+    username,
+    password: acc.password,
+    name: acc.name,
+    role: acc.role || 'admin',
+    status: 'active',
+  }
+  const next = [...accounts, newRow]
+  emitDataChange(ACCOUNTS_KEY, next)
+  return newRow
+}
+
+// ---------------------------------------------------------------------------
 // Seed data so the system is functional on first run
 // ---------------------------------------------------------------------------
 const initialEmployees = [
@@ -3593,12 +3634,17 @@ function LoginScreen({ onLogin }) {
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const [stage, setStage] = useState('email') // 'email' | 'otp'
+const [stage, setStage] = useState('email') // 'email' | 'otp' | 'register'
   const [pendingEmail, setPendingEmail] = useState(null)
 
   const [otp, setOtp] = useState('')
   const [demoOtp, setDemoOtp] = useState('')
   const [demoMode, setDemoMode] = useState(false)
+
+  // First-run admin registration fields
+  const [regEmail, setRegEmail] = useState('')
+  const [regPassword, setRegPassword] = useState('')
+  const [regName, setRegName] = useState('')
 
 // Real Supabase email OTP is used by default.
   // Set VITE_OTP_DEMO=true only to fall back to a locally-shown demo code.
@@ -3794,10 +3840,37 @@ const normalized = otp.trim()
 
       appendAudit({ user: pendingEmail, role, action: 'login', module: 'auth', detail: `Successful login as ${roleLabel(role)}` })
       onLogin({ role, name, email: pendingEmail })
-    } catch (err) {
+} catch (err) {
       setError(err?.message || 'Incorrect or expired code. Please try again.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  // First-run admin registration: create a brand-new admin account directly in
+  // the registry, then immediately log in as that admin (no OTP needed).
+  const handleRegisterSubmit = (e) => {
+    e.preventDefault()
+    setError('')
+    setInfo('')
+    const em = regEmail.trim().toLowerCase()
+    if (!em || !regPassword) {
+      setError('Enter your email and a password to set up your admin account.')
+      return
+    }
+    try {
+      const created = createBootstrapAccount({
+        email: em,
+        password: regPassword,
+        name: regName.trim() || 'Administrator',
+        role: 'admin',
+      })
+      appendAudit({ user: em, role: 'admin', action: 'create', module: 'accounts', detail: 'First-run admin account created' })
+      setInfo('')
+      setError('')
+      onLogin({ role: 'admin', name: created.name || 'Administrator', email: em })
+    } catch (err) {
+      setError(err.message || 'Failed to create admin account.')
     }
   }
 
@@ -3881,7 +3954,61 @@ const featureCards = [
               </p>
             </div>
 
-            {stage === 'email' ? (
+{stage === 'register' ? (
+              <form onSubmit={handleRegisterSubmit} className="login-form">
+                <label className="login-field">
+                  <span>Your email</span>
+                  <input
+                    type="email"
+                    placeholder="you@gmail.com"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    required
+                  />
+                </label>
+                <label className="login-field">
+                  <span>Display name</span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Jane Smith"
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                  />
+                </label>
+                <label className="login-field">
+                  <span>Password</span>
+                  <input
+                    type="password"
+                    placeholder="At least 6 characters"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    minLength="6"
+                    required
+                  />
+                </label>
+
+                {error ? <div className="login-error">{error}</div> : null}
+                {info ? <div className="login-info">{info}</div> : null}
+
+                <button type="submit" className="btn-save login-submit" disabled={busy}>
+                  {busy ? 'Creating…' : 'Set up Admin Account'}
+                </button>
+
+                <div className="login-form-actions">
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => {
+                      setStage('email')
+                      setError('')
+                      setInfo('')
+                    }}
+                  >
+                    ← Back to Sign In
+                  </button>
+                </div>
+              </form>
+            ) : stage === 'email' ? (
               <form onSubmit={handleEmailSubmit} className="login-form">
                 <label className="login-field">
                   <span>Email</span>
@@ -3904,7 +4031,10 @@ const featureCards = [
 <div className="login-demo-hint">
                   <strong>Demo accounts:</strong> admin@ihims.local • hr@ihims.local • staff@ihims.local
                   <br />
-                  Only accounts created by an administrator can sign in. Ask your admin to add your email first.
+                  Only accounts created by an administrator can sign in. First time here?{' '}
+                  <button type="button" className="login-link-btn" onClick={() => { setStage('register'); setError(''); setInfo('') }}>
+                    Set up your admin account
+                  </button>
                 </div>
               </form>
             ) : (
