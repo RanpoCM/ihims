@@ -4595,3 +4595,223 @@ button {
     width: 300px;
   }
 }
+
+/* =====================================================
+   Settings / Employee Profiles module
+   ===================================================== */
+.settings-directory {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--sp-4);
+}
+
+.settings-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-5);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+
+.settings-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+}
+
+.settings-avatar-wrap {
+  position: relative;
+}
+
+.settings-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--primary-soft);
+  border: 3px solid var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+}
+
+.settings-avatar--placeholder {
+  background: linear-gradient(135deg, var(--primary-soft), var(--secondary-soft));
+}
+
+.settings-photo-actions {
+  position: absolute;
+  bottom: -2px;
+  right: -6px;
+  display: flex;
+  gap: 6px;
+}
+
+.settings-photo-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--transition), background var(--transition);
+  overflow: hidden;
+}
+
+.settings-photo-btn:hover {
+  transform: scale(1.1);
+  background: var(--primary-dark);
+}
+
+.settings-photo-btn input[type="file"] {
+  display: none;
+}
+
+.settings-photo-btn--remove {
+  background: var(--danger);
+}
+
+.settings-photo-btn--remove:hover {
+  background: #b91c1c;
+}
+
+.settings-card-info h3 {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.settings-role {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.settings-dept {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+.settings-card-metrics {
+  display: flex;
+  gap: var(--sp-3);
+  width: 100%;
+  justify-content: center;
+  border-top: 1px solid var(--border);
+  padding-top: var(--sp-3);
+}
+
+.settings-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.settings-metric-value {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.settings-metric-label {
+  font-size: 10px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 600;
+}
+
+.settings-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+/* =====================================================
+   Notification unread / tools enhancements
+   ===================================================== */
+.notif-panel-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.notif-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.notif-tool:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.notif-item {
+  position: relative;
+}
+
+.notif-item.unread {
+  background: var(--primary-soft);
+}
+
+.notif-item.read {
+  opacity: 0.72;
+}
+
+.notif-item.read .notif-item-title {
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.notif-dot {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+@media (max-width: 767px) {
+  .settings-directory {
+    grid-template-columns: 1fr;
+  }
+}

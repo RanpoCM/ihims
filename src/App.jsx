@@ -257,10 +257,55 @@ const next = buckets.map((b) => {
 }
 
 
-// Notification Bell - shows a bell icon with a badge count and a dropdown panel
-// Each notification is clickable and navigates to its related module via onNavigate.
-function NotificationBell({ announcements, trainingPrograms, employees, onNavigate }) {
+// Gentle ding/chime synthesized with the Web Audio API (no asset needed).
+function playNotificationSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext
+    if (!AudioCtx) return
+    const ctx = new AudioCtx()
+    const now = ctx.currentTime
+
+    const note = (freq, start, dur, gainVal) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(gainVal, start + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + dur)
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(start)
+      osc.stop(start + dur + 0.05)
+    }
+
+    note(880, now, 0.18, 0.18)        // A5
+    note(1320, now + 0.12, 0.25, 0.16) // E6
+    setTimeout(() => ctx.close().catch(() => {}), 700)
+  } catch {
+    // ignore audio errors
+  }
+}
+
+// Notification Bell - shows a bell icon with an unread badge and a dropdown panel.
+// Supports a subtle sound, unread tracking (persisted per user), and clicking a
+// notification marks it as read and navigates to the related module.
+function NotificationBell({ announcements, trainingPrograms, employees, onNavigate, userName }) {
   const [open, setOpen] = useState(false)
+  const readKey = userName ? `ihims_notif_read_${userName.toLowerCase()}` : 'ihims_notif_read'
+  const [readIds, setReadIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(readKey) || '[]')
+    } catch {
+      return []
+    }
+  })
+  const [soundPref, setSoundPref] = useState(() => {
+    try {
+      return localStorage.getItem('ihims_notif_sound') !== 'off'
+    } catch {
+      return true
+    }
+  })
 
   const notifications = [
     ...(announcements || []).map((a) => ({
@@ -297,7 +342,57 @@ function NotificationBell({ announcements, trainingPrograms, employees, onNaviga
       })),
   ].sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1))
 
-  const handleNavigate = (nav) => {
+  const unread = notifications.filter((n) => !readIds.includes(n.id))
+  const unreadCount = unread.length
+
+  // Play a subtle chime only when the set of unread notifications grows and
+  // sound is enabled (and there is at least one unread item).
+  const prevUnread = useRef(new Set())
+  useEffect(() => {
+    const ids = new Set(unread.map((n) => n.id))
+    let gained = false
+    ids.forEach((id) => {
+      if (!prevUnread.current.has(id)) gained = true
+    })
+    prevUnread.current = ids
+    if (gained && unread.length > 0 && soundPref) {
+      playNotificationSound()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifications])
+
+  const persistRead = (next) => {
+    setReadIds(next)
+    try {
+      localStorage.setItem(readKey, JSON.stringify(next))
+    } catch {
+      // ignore
+    }
+  }
+
+  const markRead = (id) => {
+    if (!readIds.includes(id)) {
+      persistRead([...readIds, id])
+    }
+  }
+
+  const markAllRead = () => {
+    persistRead(notifications.map((n) => n.id))
+  }
+
+  const toggleSound = () => {
+    const next = !soundPref
+    setSoundPref(next)
+    try {
+      localStorage.setItem('ihims_notif_sound', next ? 'on' : 'off')
+    } catch {
+      // ignore
+    }
+    if (next) playNotificationSound()
+  }
+
+  const handleNavigate = (nav, id) => {
+    markRead(id)
     if (typeof onNavigate === 'function') onNavigate(nav)
     setOpen(false)
   }
@@ -313,46 +408,60 @@ function NotificationBell({ announcements, trainingPrograms, employees, onNaviga
     return () => document.removeEventListener('click', onClickOutside)
   }, [open])
 
-return (
+  return (
     <div className="notif-bell" ref={panelRef}>
       <button
         className="notif-bell-btn"
         onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
         aria-label="Notifications"
       >
-<span className="notif-bell-icon"><Icon name="bell" size={20} /></span>
-        {notifications.length > 0 ? (
-          <span className="notif-badge">{notifications.length}</span>
+        <span className="notif-bell-icon"><Icon name={unreadCount > 0 ? 'bell' : 'bellOff'} size={20} /></span>
+        {unreadCount > 0 ? (
+          <span className="notif-badge">{unreadCount}</span>
         ) : null}
       </button>
       {open && (
         <div className="notif-panel">
           <div className="notif-panel-header">
             <strong>Notifications</strong>
-            <span className="notif-count">{notifications.length}</span>
+            <span className="notif-count">{unreadCount} unread</span>
+          </div>
+          <div className="notif-panel-tools">
+            <button className="notif-tool" onClick={toggleSound} title={soundPref ? 'Mute notifications' : 'Unmute notifications'}>
+              <Icon name={soundPref ? 'bell' : 'bellOff'} size={14} /> {soundPref ? 'Sound on' : 'Sound off'}
+            </button>
+            {unreadCount > 0 ? (
+              <button className="notif-tool" onClick={markAllRead}>
+                <Icon name="checkCircle" size={14} /> Mark all read
+              </button>
+            ) : null}
           </div>
           <div className="notif-list">
             {notifications.length === 0 ? (
               <div className="notif-empty">You're all caught up! 🎉</div>
             ) : (
-              notifications.map((n) => (
-                <button
-                  key={n.id}
-                  className={`notif-item ${n.pinned ? 'pinned' : ''}`}
-                  onClick={() => handleNavigate(n.nav)}
-                >
-                  <span className="notif-item-icon"><Icon name={n.icon} size={22} /></span>
-                  <div className="notif-item-content">
-                    <div className="notif-item-title">{n.title}</div>
-                    <div className="notif-item-body">{n.body}</div>
-                    <div className="notif-item-meta">
-                      <span className={`notif-cat cat-${n.category ? n.category.toLowerCase() : ''}`}>{n.category}</span>
-                      {n.time ? <span className="notif-time">{n.time}</span> : null}
-                      <span className="notif-goto"><Icon name="arrowRight" size={12} /></span>
+              notifications.map((n) => {
+                const isRead = readIds.includes(n.id)
+                return (
+                  <button
+                    key={n.id}
+                    className={`notif-item ${n.pinned ? 'pinned' : ''} ${isRead ? 'read' : 'unread'}`}
+                    onClick={(e) => { e.stopPropagation(); handleNavigate(n.nav, n.id) }}
+                  >
+                    {!isRead ? <span className="notif-dot"></span> : null}
+                    <span className="notif-item-icon"><Icon name={n.icon} size={22} /></span>
+                    <div className="notif-item-content">
+                      <div className="notif-item-title">{n.title}</div>
+                      <div className="notif-item-body">{n.body}</div>
+                      <div className="notif-item-meta">
+                        <span className={`notif-cat cat-${n.category ? n.category.toLowerCase() : ''}`}>{n.category}</span>
+                        {n.time ? <span className="notif-time">{n.time}</span> : null}
+                        <span className="notif-goto"><Icon name="arrowRight" size={12} /></span>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))
+                  </button>
+                )
+              })
             )}
           </div>
         </div>
@@ -621,6 +730,14 @@ const deleteAccount = (id) => {
     appendAudit({ user: actor.name, role, action: 'bulk_delete', module: 'performance', detail: `Bulk-deleted ${ids.length} employee record(s)` })
   }
 
+  // Update an employee's photo (or any settings-level field).
+  const updateEmployeePhoto = (id, photo) => {
+    requireEdit(role, 'settings')
+    const target = employees.find((e) => e.id === id)
+    setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, photo } : e)))
+    appendAudit({ user: actor.name, role, action: 'update', module: 'settings', detail: `Updated profile photo for "${target?.name || id}"` })
+  }
+
 const renderModule = () => {
     // RBAC: verify view permission (throws 403 if denied), show a 403 page.
     try {
@@ -735,6 +852,14 @@ case 'accounts':
             userName={actor.name}
           />
         )
+      case 'settings':
+        return (
+          <SettingsModule
+            employees={employees}
+            canEdit={canEditModule(role, 'settings')}
+            updateEmployeePhoto={updateEmployeePhoto}
+          />
+        )
       case 'audit':
         return <AuditModule />
 default:
@@ -776,10 +901,11 @@ default:
           <span className="date-display">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
           <span className="status-indicator"><span className="status-dot"></span> Online</span>
           <div className="header-actions">
-            <NotificationBell
+<NotificationBell
               announcements={announcements}
               trainingPrograms={trainingPrograms}
               employees={employees}
+              userName={actor.name}
               onNavigate={(mod) => { setActiveModule(mod); setMobileMenuOpen(false) }}
             />
 <button className="btn-cancel" onClick={onLogout} type="button">
@@ -3006,6 +3132,150 @@ function AuditModule() {
             ) : null}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+// Settings Module — employee profiles with photos. Admin/HR can add/update
+// profile pictures; all roles can view the directory.
+function SettingsModule({ employees, canEdit, updateEmployeePhoto }) {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterDept, setFilterDept] = useState('All')
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+
+  const departments = [...new Set(employees.map((e) => e.department).filter(Boolean))]
+
+  const filtered = employees.filter((e) => {
+    const matchesSearch = `${e.name} ${e.role} ${e.department}`.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesDept = filterDept === 'All' || e.department === filterDept
+    return matchesSearch && matchesDept
+  })
+
+  // Convert an uploaded image file to a base64 data URL so it persists in
+  // localStorage alongside the employee record.
+  const handlePhotoUpload = (emp, file) => {
+    if (!canEdit) return
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setErr('Please select a valid image file.')
+      setMsg('')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setErr('Image too large. Please choose an image under 2MB.')
+      setMsg('')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        updateEmployeePhoto(emp.id, reader.result)
+        setMsg(`Profile photo updated for ${emp.name}.`)
+        setErr('')
+      } catch (ex) {
+        setErr(ex.message || 'Failed to update photo')
+        setMsg('')
+      }
+    }
+    reader.onerror = () => {
+      setErr('Could not read the selected image.')
+      setMsg('')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removePhoto = (emp) => {
+    if (!canEdit) return
+    try {
+      updateEmployeePhoto(emp.id, null)
+      setMsg(`Profile photo removed for ${emp.name}.`)
+      setErr('')
+    } catch (ex) {
+      setErr(ex.message || 'Failed to remove photo')
+      setMsg('')
+    }
+  }
+
+  return (
+    <div className="module">
+      <h1 className="page-title">Settings & Employee Profiles</h1>
+      <p className="page-subtitle">
+        Manage staff directory and profile photos. {canEdit ? 'Admin/HR can upload and update profile pictures.' : 'View-only access to the staff directory.'}
+      </p>
+
+      {msg ? <div className="account-msg success">{msg}</div> : null}
+      {err ? <div className="account-msg error">{err}</div> : null}
+
+      <div className="search-filter">
+        <input
+          type="text"
+          className="search-input"
+          placeholder="Search employees..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <select value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
+          <option value="All">All Departments</option>
+          {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+        </select>
+      </div>
+
+      <div className="settings-directory">
+        {filtered.map((emp) => (
+          <div key={emp.id} className="settings-card">
+            <div className="settings-avatar-wrap">
+              {emp.photo ? (
+                <img className="settings-avatar" src={emp.photo} alt={emp.name} />
+              ) : (
+                <div className="settings-avatar settings-avatar--placeholder">
+                  <Icon name="user" size={32} />
+                </div>
+              )}
+              {canEdit ? (
+                <div className="settings-photo-actions">
+                  <label className="settings-photo-btn" title="Upload photo">
+                    <Icon name="camera" size={16} />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => { handlePhotoUpload(emp, e.target.files[0]); e.target.value = '' }}
+                    />
+                  </label>
+                  {emp.photo ? (
+                    <button className="settings-photo-btn settings-photo-btn--remove" title="Remove photo" onClick={() => removePhoto(emp)}>
+                      <Icon name="trash" size={16} />
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            <div className="settings-card-info">
+              <h3>{emp.name}</h3>
+              <span className="settings-role">{emp.role}</span>
+              <span className="settings-dept">{emp.department}</span>
+            </div>
+            <div className="settings-card-metrics">
+              <div className="settings-metric">
+                <span className="settings-metric-value">{emp.performance}%</span>
+                <span className="settings-metric-label">Performance</span>
+              </div>
+              <div className="settings-metric">
+                <span className="settings-metric-value">{emp.competency}%</span>
+                <span className="settings-metric-label">Competency</span>
+              </div>
+              <div className="settings-metric">
+                <span className="settings-metric-value">{emp.training}%</span>
+                <span className="settings-metric-label">Training</span>
+              </div>
+            </div>
+            {canEdit && !emp.photo ? (
+              <p className="settings-hint"><Icon name="image" size={14} /> No photo yet — hover the avatar to upload one.</p>
+            ) : null}
+          </div>
+        ))}
+        {filtered.length === 0 ? <div className="attention-empty">No employees match your search.</div> : null}
       </div>
     </div>
   )

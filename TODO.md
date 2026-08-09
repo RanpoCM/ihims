@@ -25,3 +25,12 @@ The unified SVG icon system and UI polish are complete, committed, and pushed to
 - [x] Wired `onNavigate` prop from AppContent to NotificationBell
 - [x] Build + lint pass (0 warnings/errors)
 
+## Enhancement round 2 (user feedback)
+- [ ] Add notification sound (gentle chime via Web Audio API) when there are unread notifications
+- [ ] Mark notification as read when clicked; unread badge reflects unread count
+- [ ] Add "Mark all as read" action
+- [ ] Add Settings module to manage employee profiles + upload employee pictures (avatars)
+- [ ] Display employee avatars across the app (performance table, dashboard, succession, etc.)
+- [ ] Build + lint pass
+- [ ] Commit + push to GitHub
+
