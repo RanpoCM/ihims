@@ -1,36 +1,31 @@
-# TODO - IHIMS Icon System & UI Polish
+# TODO — Focus IHIMS on 6 core modules with supporting admin features
 
 ## Goal
-Replace placeholder text/emoji icons with a clean, consistent SVG icon system and polish the UI. Then commit and push to GitHub.
+Restructure the sidebar so the system's primary focus is 6 core modules, while the
+other 5 modules (Recognition, Accounts, Announcements, Audit Log, Settings) remain
+fully functional as supporting/admin features in a secondary "Admin & Tools" section.
 
-## Progress
-- [x] Create `src/components/Icon.jsx` — reusable SVG icon component (~30 named icons)
-- [x] Enhance `public/favicon.svg` + `index.html` for brand consistency
-- [x] Update `src/rbac.js` — use meaningful icon keys in MODULES
-- [x] Update `src/App.jsx` — wire `<Icon>` into Navbar, stat cards, learning/recognition stats, logo, avatars, action buttons
-- [x] Polish `src/App.css` — icon sizing/transitions, subtle UI refinements
-- [x] Run `npm run build` to verify it passes ✓
-- [x] Run `npm run lint` to verify 0 warnings/errors ✓
-- [x] Commit changes (commit 062a7ff)
-- [x] Push to `github.com/RanpoCM/ihims` (origin/master ✓)
+## Core 6 modules (main navigation)
+1. Dashboard
+2. Performance
+3. Competency
+4. AI Competency (Gap Analysis)
+5. Learning & Training
+6. Succession Planning
 
-## Done
-The unified SVG icon system and UI polish are complete, committed, and pushed to GitHub.
+## Supporting / Admin modules (secondary section)
+- Recognition
+- Accounts
+- Announcements
+- Audit Log
+- Settings
 
-## Additional enhancement: clickable notifications
-- [x] Made each notification in the NotificationBell clickable
-- [x] Notifications navigate to their related module (announcements → Announcements, training → Learning, low performance → Performance)
-- [x] Replaced emoji notification icons with SVG icons + themed icon containers
-- [x] Added hover state with arrow indicator
-- [x] Wired `onNavigate` prop from AppContent to NotificationBell
-- [x] Build + lint pass (0 warnings/errors)
-
-## Enhancement round 2 (user feedback)
-- [ ] Add notification sound (gentle chime via Web Audio API) when there are unread notifications
-- [ ] Mark notification as read when clicked; unread badge reflects unread count
-- [ ] Add "Mark all as read" action
-- [ ] Add Settings module to manage employee profiles + upload employee pictures (avatars)
-- [ ] Display employee avatars across the app (performance table, dashboard, succession, etc.)
-- [ ] Build + lint pass
-- [ ] Commit + push to GitHub
+## Plan
+- [x] Read rbac.js MODULES + Navbar component to understand current structure
+- [x] rbac.js: add `featured` flag to MODULES (true for the 6 core, false for supporting)
+- [x] App.jsx Navbar: split visible modules into featured (main) + supporting (Admin section)
+- [x] App.css: add styles for the admin section divider/heading
+- [x] npm run lint → must pass (0 warnings/errors)
+- [x] npm run build → must pass
+- [x] Commit + push to github.com/RanpoCM/ihims on master
 

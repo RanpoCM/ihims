@@ -1002,6 +1002,11 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
   // RBAC: only show modules the role is allowed to see
   const visibleModules = visibleModulesFor(role)
 
+  // Split into core (featured) modules and supporting/admin modules so the
+  // system is focused on 6 primary modules with the rest as secondary tools.
+  const coreModules = visibleModules.filter((m) => m.featured)
+  const adminModules = visibleModules.filter((m) => !m.featured)
+
   return (
     <nav className={`sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`} aria-label="Main navigation">
       <div className="nav-brand">
@@ -1014,7 +1019,7 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
         <span className="brand-text">IHIMS</span>
       </div>
       <div className="nav-links">
-        {visibleModules.map(mod => (
+        {coreModules.map(mod => (
           <button
             key={mod.id}
             className={`nav-link ${activeModule === mod.id ? 'active' : ''}`}
@@ -1024,6 +1029,22 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
             <span className="nav-label">{mod.label}</span>
           </button>
         ))}
+
+        {adminModules.length > 0 ? (
+          <>
+            <div className="nav-section-label">Admin &amp; Tools</div>
+            {adminModules.map(mod => (
+              <button
+                key={mod.id}
+                className={`nav-link ${activeModule === mod.id ? 'active' : ''}`}
+                onClick={() => { setActiveModule(mod.id); setMobileMenuOpen(false) }}
+              >
+                <span className="nav-icon"><Icon name={mod.icon} size={18} /></span>
+                <span className="nav-label">{mod.label}</span>
+              </button>
+            ))}
+          </>
+        ) : null}
       </div>
       <div className="nav-user">
         <span className="user-avatar"><Icon name="user" size={18} /></span>

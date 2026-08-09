@@ -275,6 +275,23 @@ button {
   flex: 1;
 }
 
+/* Section divider in the sidebar (core vs Admin & Tools) */
+.nav-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #64748b;
+  padding: 14px 14px 6px;
+  margin-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nav-section-label:first-child {
+  border-top: none;
+  padding-top: 6px;
+}
+
 .nav-link {
   display: flex;
   align-items: center;

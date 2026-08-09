@@ -7,20 +7,23 @@
 // This is data-driven so new roles/modules can be added without code changes.
 // ===========================================================================
 
-// The 6 application modules (Dashboard is always visible to all authenticated
-// users; it is the default landing view).
+// The application modules. The system is focused on 6 core "featured" modules
+// (Dashboard is always visible to all authenticated users as the landing view);
+// the remaining modules are supporting / admin utilities shown in a secondary
+// navigation section. `featured: true` marks the core modules that appear in
+// the primary navigation.
 export const MODULES = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'home' },
-  { id: 'performance', label: 'Performance', icon: 'performance' },
-  { id: 'competency', label: 'Competency', icon: 'competency' },
-  { id: 'aiCompetency', label: 'AI Competency', icon: 'ai' },
-  { id: 'learning', label: 'Learning & Training', icon: 'learning' },
-  { id: 'succession', label: 'Succession', icon: 'succession' },
-  { id: 'recognition', label: 'Recognition', icon: 'recognition' },
-{ id: 'accounts', label: 'Accounts', icon: 'accounts' },
-  { id: 'announcements', label: 'Announcements', icon: 'announcements' },
-  { id: 'audit', label: 'Audit Log', icon: 'audit' },
-  { id: 'settings', label: 'Settings', icon: 'settings' },
+  { id: 'dashboard', label: 'Dashboard', icon: 'home', featured: true },
+  { id: 'performance', label: 'Performance', icon: 'performance', featured: true },
+  { id: 'competency', label: 'Competency', icon: 'competency', featured: true },
+  { id: 'aiCompetency', label: 'AI Competency', icon: 'ai', featured: true },
+  { id: 'learning', label: 'Learning & Training', icon: 'learning', featured: true },
+  { id: 'succession', label: 'Succession', icon: 'succession', featured: true },
+  { id: 'recognition', label: 'Recognition', icon: 'recognition', featured: false },
+  { id: 'accounts', label: 'Accounts', icon: 'accounts', featured: false },
+  { id: 'announcements', label: 'Announcements', icon: 'announcements', featured: false },
+  { id: 'audit', label: 'Audit Log', icon: 'audit', featured: false },
+  { id: 'settings', label: 'Settings', icon: 'settings', featured: false },
 ]
 
 // Role definitions.
