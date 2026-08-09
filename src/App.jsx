@@ -3,6 +3,8 @@ import './App.css'
 import Icon from './components/Icon'
 import { supabase } from './supabaseClient'
 import GapAnalysisModule from './competency/GapAnalysisModule'
+import { COMPETENCIES, estimateEmployeeCompetencies, scoreLabel } from './competency/framework'
+import { analyzeEmployee } from './competency/gapEngine'
 import { generateAIReply, buildGreeting } from './aiAssistant'
 import {
   roleLabel,
@@ -1810,21 +1812,66 @@ function CompetencyModule({ competencies, canEdit, employees, addCompetency, upd
     }
   }
 
-  // Derive category stats from actual employee data (competency avg per category label)
+  // Form categories for user-defined competencies (kept for the add/edit form).
   const categoryNames = ['Technical Skills', 'Soft Skills', 'Leadership', 'Regulatory Compliance']
-  const categoryStats = categoryNames.map((name) => {
-    // Fallback to framework weights as a proxy, then average against employee competency
-    const totalWeight = competencies.filter((c) => c.category === name).reduce((s, c) => s + (Number(c.weight) || 0), 0)
-    const empAvg = employees.length ? Math.round(employees.reduce((s, e) => s + (Number(e.competency) || 0), 0) / employees.length) : 0
-    const value = totalWeight > 0 ? Math.min(100, Math.max(10, totalWeight + 40)) : empAvg
-    return { name, value: Math.round(value) }
-  })
+
+  // Real per-category competency averages derived from the framework's 15
+  // competencies. Each employee's levels (1-5) are estimated from their live
+  // performance / competency / training scores, then averaged per category.
+  const categoryStats = useMemo(() => {
+    const map = {}
+    COMPETENCIES.forEach((c) => {
+      if (!map[c.category]) map[c.category] = { total: 0, count: 0 }
+    })
+    employees.forEach((emp) => {
+      const levels = estimateEmployeeCompetencies(emp)
+      COMPETENCIES.forEach((c) => {
+        map[c.category].total += levels[c.id] || 0
+        map[c.category].count += 1
+      })
+    })
+    return Object.entries(map).map(([name, v]) => ({
+      name,
+      value: v.count ? Math.round((v.total / v.count / 5) * 100) : 0,
+    }))
+  }, [employees])
 
   // Gap visualization: employees whose competency is below their performance
   const gaps = employees
     .filter((e) => e.competency < e.performance)
     .map((e) => ({ name: e.name, gap: e.performance - e.competency, performance: e.performance, competency: e.competency }))
     .sort((a, b) => b.gap - a.gap)
+
+  // Live per-department competency averages derived from each employee's
+  // estimated levels, so the assessment table reflects real data.
+  const deptAssessment = useMemo(() => {
+    const depts = {}
+    employees.forEach((emp) => {
+      const d = emp.department || 'Unknown'
+      if (!depts[d]) depts[d] = []
+      depts[d].push(estimateEmployeeCompetencies(emp))
+    })
+    return Object.entries(depts).map(([name, levelsArr]) => {
+      const avg = (compId) => {
+        const sum = levelsArr.reduce((s, l) => s + (l[compId] || 0), 0)
+        return Math.round((sum / levelsArr.length / 5) * 100)
+      }
+      const keys = Object.keys(levelsArr[0])
+      const overallSum = levelsArr.reduce(
+        (s, l) => s + keys.reduce((a, b) => a + (l[b] || 0), 0) / keys.length,
+        0
+      )
+      return {
+        name,
+        clinical: avg('clinicalSkills'),
+        communication: avg('communication'),
+        leadership: avg('leadership'),
+        technical: avg('technicalSkills'),
+        compliance: avg('compliance'),
+        overall: Math.round((overallSum / levelsArr.length / 5) * 100),
+      }
+    })
+  }, [employees])
 
   return (
     <div className="module">
@@ -1956,42 +2003,20 @@ function CompetencyModule({ competencies, canEdit, employees, addCompetency, upd
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>Nursing</td>
-                <td>92%</td>
-                <td>85%</td>
-                <td>78%</td>
-                <td>90%</td>
-                <td>95%</td>
-                <td><strong>88%</strong></td>
-              </tr>
-              <tr>
-                <td>Cardiology</td>
-                <td>95%</td>
-                <td>88%</td>
-                <td>82%</td>
-                <td>94%</td>
-                <td>98%</td>
-                <td><strong>91%</strong></td>
-              </tr>
-              <tr>
-                <td>Emergency</td>
-                <td>90%</td>
-                <td>82%</td>
-                <td>85%</td>
-                <td>88%</td>
-                <td>92%</td>
-                <td><strong>87%</strong></td>
-              </tr>
-              <tr>
-                <td>Administration</td>
-                <td>75%</td>
-                <td>90%</td>
-                <td>88%</td>
-                <td>80%</td>
-                <td>85%</td>
-                <td><strong>84%</strong></td>
-              </tr>
+              {deptAssessment.map((d) => (
+                <tr key={d.name}>
+                  <td>{d.name}</td>
+                  <td>{d.clinical}%</td>
+                  <td>{d.communication}%</td>
+                  <td>{d.leadership}%</td>
+                  <td>{d.technical}%</td>
+                  <td>{d.compliance}%</td>
+                  <td><strong>{d.overall}%</strong></td>
+                </tr>
+              ))}
+              {deptAssessment.length === 0 ? (
+                <tr><td colSpan="7" style={{ textAlign: 'center', padding: 16 }}>No employee data available.</td></tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -2230,6 +2255,7 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
 // Succession Module
 function SuccessionModule({ successionCandidates, employees, canEdit, addSuccession, updateSuccession, deleteSuccession }) {
   const [profileName, setProfileName] = useState(null)
+  const [devPlanName, setDevPlanName] = useState(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [editId, setEditId] = useState(null)
@@ -2238,7 +2264,7 @@ function SuccessionModule({ successionCandidates, employees, canEdit, addSuccess
   const [newPlan, setNewPlan] = useState({ currentRole: '', readiness: 'Medium', timeline: '', candidates: '' })
 
   const openProfile = (name) => setProfileName(name)
-  const closeProfile = () => setProfileName(null)
+  const closeProfile = () => { setProfileName(null); setDevPlanName(null) }
 
   const resetForm = () => {
     setNewPlan({ currentRole: '', readiness: 'Medium', timeline: '', candidates: '' })
@@ -2303,6 +2329,39 @@ function SuccessionModule({ successionCandidates, employees, canEdit, addSuccess
   const profileEmployee = profileName
     ? employees.find((e) => e.name === profileName) || null
     : null
+
+  // Live talent pool: compute each person's succession readiness, their real
+  // potential roles (from succession plans), and their actual development
+  // needs (weakest competencies from the live gap engine).
+  const talentPool = useMemo(() => {
+    return employees
+      .map((emp) => {
+        const a = analyzeEmployee(emp)
+        const readiness = a.promotionReadiness >= 80 ? 'High' : a.promotionReadiness >= 60 ? 'Medium' : 'Low'
+        const potentialRoles = successionCandidates
+          .filter((p) => (p.candidates || []).includes(emp.name))
+          .map((p) => p.currentRole)
+        const devNeeds = a.gaps
+          .filter((g) => g.gap > 0)
+          .slice()
+          .sort((x, y) => y.gap - x.gap)
+          .slice(0, 2)
+          .map((g) => g.competencyName)
+        return {
+          emp,
+          a,
+          readiness,
+          potentialRoles,
+          isCandidates: potentialRoles.length > 0,
+          devNeeds,
+        }
+      })
+      .sort((p1, p2) => p2.a.promotionReadiness - p1.a.promotionReadiness)
+  }, [employees, successionCandidates])
+
+  // The employee + analysis behind the currently open Development Plan.
+  const devEmployee = devPlanName ? employees.find((e) => e.name === devPlanName) || null : null
+  const devAnalysis = devEmployee ? analyzeEmployee(devEmployee) : null
 
   return (
     <div className="module" style={canEdit ? undefined : { opacity: 0.95 }}>
@@ -2395,9 +2454,9 @@ function SuccessionModule({ successionCandidates, employees, canEdit, addSuccess
                   </div>
                 ))}
               </div>
-              <div className="succession-actions">
+<div className="succession-actions">
                 <button className="btn-view" onClick={() => openProfile(plan.candidates[0])}>View Profile</button>
-                <button className="btn-development" onClick={() => openProfile(plan.candidates[0])}>Development Plan</button>
+                <button className="btn-development" onClick={() => setDevPlanName(plan.candidates[0])}>Development Plan</button>
                 {canEdit ? (
                   <>
                     <button className="btn-edit" onClick={() => startEdit(plan)}>Edit</button>
@@ -2409,6 +2468,47 @@ function SuccessionModule({ successionCandidates, employees, canEdit, addSuccess
           ))}
         </div>
       </div>
+
+      {/* Development Plan Modal */}
+      {devPlanName && devEmployee && devAnalysis && (
+        <div className="modal-overlay" onClick={closeProfile}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Development Plan — {devEmployee.name}</h3>
+              <button className="modal-close" onClick={closeProfile} aria-label="Close">&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="profile-row"><span className="profile-label">Role</span><span className="profile-value">{devEmployee.role}</span></div>
+              <div className="profile-row"><span className="profile-label">Overall</span><span className="profile-value">{devAnalysis.overallScore}%</span></div>
+              <div className="profile-row"><span className="profile-label">Promotion</span><span className="profile-value">{devAnalysis.promotionReadiness}%</span></div>
+              {devAnalysis.gaps.filter((g) => g.gap > 0).slice(0, 4).map((g) => (
+                <div key={g.competencyId} className="dev-plan-item">
+                  <div className="dev-plan-head">
+                    <strong>{g.competencyName}</strong>
+                    <span className="gap-pill high">{scoreLabel(g.currentLevel)} → {scoreLabel(g.requiredLevel)}</span>
+                  </div>
+                  {g.recommendation ? (
+                    <>
+                      <p className="dev-plan-why">{g.recommendation.why}</p>
+                      <ul className="dev-plan-actions">
+                        {g.recommendation.actions.slice(0, 3).map((a, i) => (
+                          <li key={i}><strong>{a.kind}:</strong> {a.title}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </div>
+              ))}
+              {devAnalysis.gaps.filter((g) => g.gap > 0).length === 0 ? (
+                <p style={{ color: 'var(--success)', fontWeight: 600 }}>No competency gaps — maintain current development &amp; pursue stretch assignments.</p>
+              ) : null}
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={closeProfile}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Profile Modal */}
       {profileName && (
@@ -2459,8 +2559,8 @@ function SuccessionModule({ successionCandidates, employees, canEdit, addSuccess
         </div>
       )}
 
-      <div className="talent-pool">
-        <h2 className="panel-title">Talent Pool</h2>
+<div className="talent-pool">
+        <h2 className="panel-title">Talent Pool ({talentPool.length})</h2>
         <table className="talent-table">
           <thead>
             <tr>
@@ -2468,51 +2568,26 @@ function SuccessionModule({ successionCandidates, employees, canEdit, addSuccess
               <th>Current Role</th>
               <th>Department</th>
               <th>Readiness Level</th>
+              <th>Promotion Readiness</th>
               <th>Potential Roles</th>
               <th>Development Needs</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>Dr. Michael Chen</td>
-              <td>Cardiologist</td>
-              <td>Cardiology</td>
-              <td><span className="readiness-high">High</span></td>
-              <td>Chief Medical Officer</td>
-              <td>Executive Leadership</td>
-            </tr>
-            <tr>
-              <td>James Wilson</td>
-              <td>Senior Nurse</td>
-              <td>Nursing</td>
-              <td><span className="readiness-high">High</span></td>
-              <td>Head of Nursing</td>
-              <td>Budget Management</td>
-            </tr>
-            <tr>
-              <td>Dr. Lisa Anderson</td>
-              <td>Pediatrician</td>
-              <td>Pediatrics</td>
-              <td><span className="readiness-high">High</span></td>
-              <td>Chief Medical Officer</td>
-              <td>Strategic Planning</td>
-            </tr>
-            <tr>
-              <td>Emily Brown</td>
-              <td>Lab Technician</td>
-              <td>Laboratory</td>
-              <td><span className="readiness-medium">Medium</span></td>
-              <td>Laboratory Director</td>
-              <td>Advanced Management</td>
-            </tr>
-            <tr>
-              <td>David Martinez</td>
-              <td>Administrator</td>
-              <td>Administration</td>
-              <td><span className="readiness-medium">Medium</span></td>
-              <td>HR Manager</td>
-              <td>Conflict Resolution</td>
-            </tr>
+            {talentPool.map((t) => (
+              <tr key={t.emp.id}>
+                <td><strong>{t.emp.name}</strong></td>
+                <td>{t.emp.role}</td>
+                <td>{t.emp.department}</td>
+                <td><span className={`readiness-${t.readiness.toLowerCase()}`}>{t.readiness}</span></td>
+                <td>{t.a.promotionReadiness}%</td>
+                <td>{t.potentialRoles.length ? t.potentialRoles.join(', ') : '—'}</td>
+                <td>{t.devNeeds.length ? t.devNeeds.join(', ') : '—'}</td>
+              </tr>
+            ))}
+            {talentPool.length === 0 ? (
+              <tr><td colSpan="7" style={{ textAlign: 'center', padding: 16 }}>No employees in the talent pool yet.</td></tr>
+            ) : null}
           </tbody>
         </table>
       </div>
