@@ -1002,10 +1002,16 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
   // RBAC: only show modules the role is allowed to see
   const visibleModules = visibleModulesFor(role)
 
-  // Split into core (featured) modules and supporting/admin modules so the
-  // system is focused on 6 primary modules with the rest as secondary tools.
+  // Split into core (featured) modules and supporting modules so the system
+  // is focused on 6 primary modules with the rest as secondary tools.
   const coreModules = visibleModules.filter((m) => m.featured)
   const adminModules = visibleModules.filter((m) => !m.featured)
+
+  // The section label adapts to the user's role — "Admin & Tools" only makes
+  // sense for admins; HR and staff see a neutral label instead.
+  const sectionTitle =
+    role === 'admin' ? 'Admin & Tools' :
+    role === 'hr' ? 'HR Tools' : 'More'
 
   return (
     <nav className={`sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`} aria-label="Main navigation">
@@ -1030,9 +1036,9 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
           </button>
         ))}
 
-        {adminModules.length > 0 ? (
+{adminModules.length > 0 ? (
           <>
-            <div className="nav-section-label">Admin &amp; Tools</div>
+            <div className="nav-section-label">{sectionTitle}</div>
             {adminModules.map(mod => (
               <button
                 key={mod.id}
