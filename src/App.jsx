@@ -1101,7 +1101,7 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
         </div>
       </div>
 
-      {searchResults && (
+{searchResults && (
         <div className="global-search-results">
           <div className="global-search-head">
             <strong>{totalMatches}</strong> result(s) for <em>"{searchTerm}"</em>
@@ -1110,7 +1110,20 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
             <div className="global-search-group">
               <span className="global-search-label">Employees</span>
               {searchResults.employees.slice(0, 5).map((e) => (
-                <div key={e.id} className="global-search-item">{e.name} — {e.role}, {e.department}</div>
+                <div key={e.id} className="global-search-employee">
+                  <span className="global-search-avatar">
+                    {e.photo ? <img src={e.photo} alt={e.name} /> : <Icon name="user" size={18} />}
+                  </span>
+                  <div className="global-search-employee-info">
+                    <div className="global-search-employee-name">{e.name}</div>
+                    <div className="global-search-employee-meta">{e.role} • {e.department}</div>
+                    <div className="global-search-employee-scores">
+                      <span>Perf <strong>{e.performance}%</strong></span>
+                      <span>Comp <strong>{e.competency}%</strong></span>
+                      <span>Trn <strong>{e.training}%</strong></span>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           ) : null}

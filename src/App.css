@@ -503,13 +503,23 @@ button {
   left: 12px;
   color: var(--text-3);
   pointer-events: none;
+  z-index: 1;
 }
 
 .search-with-icon .search-input {
-  padding-left: 36px;
+  padding-left: 38px;
   flex: 1;
   width: 100%;
   min-width: 0;
+}
+
+/* Ensure the leading icon never overlaps typed text — the global-search and
+   module search inputs have their own padding rules; this keeps enough
+   left padding wherever the icon is shown. */
+.global-search .search-with-icon .search-input,
+.search-filter .search-with-icon .search-input,
+.search-with-icon .search-input {
+  padding-left: 38px !important;
 }
 
 .quick-action {
@@ -4170,6 +4180,74 @@ button {
   color: var(--text-main);
   padding: 4px 0;
   border-bottom: 1px dashed var(--border-light);
+}
+
+/* Enhanced employee cards in global search results */
+.global-search-employee {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  margin-bottom: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.global-search-employee:hover {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.global-search-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--secondary), var(--accent));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.global-search-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.global-search-employee-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.global-search-employee-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.global-search-employee-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.global-search-employee-scores {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.global-search-employee-scores strong {
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
 }
 .global-search-empty {
   font-size: 14px;
