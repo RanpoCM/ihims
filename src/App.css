@@ -4467,21 +4467,61 @@ button {
   gap: 12px;
   padding: 12px;
   border-radius: 10px;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
   cursor: pointer;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
 }
 
 .notif-item:hover {
   background: var(--surface-2);
+  transform: translateX(2px);
+}
+
+.notif-item:active {
+  transform: translateX(1px);
+}
+
+.notif-item:hover .notif-item-title {
+  color: var(--primary);
 }
 
 .notif-item.pinned {
   background: #eff6ff;
 }
 
+.notif-goto {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--primary);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.notif-item:hover .notif-goto {
+  opacity: 1;
+}
+
 .notif-item-icon {
-  font-size: 22px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+}
+
+.notif-item.pinned .notif-item-icon {
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .notif-item-content {

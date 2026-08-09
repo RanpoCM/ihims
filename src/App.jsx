@@ -258,13 +258,14 @@ const next = buckets.map((b) => {
 
 
 // Notification Bell - shows a bell icon with a badge count and a dropdown panel
-function NotificationBell({ announcements, trainingPrograms, employees }) {
+// Each notification is clickable and navigates to its related module via onNavigate.
+function NotificationBell({ announcements, trainingPrograms, employees, onNavigate }) {
   const [open, setOpen] = useState(false)
 
   const notifications = [
     ...(announcements || []).map((a) => ({
       id: `ann-${a.id}`,
-      icon: '📢',
+      icon: 'announcements',
       title: a.title,
       body: a.body,
       time: a.date,
@@ -276,7 +277,7 @@ function NotificationBell({ announcements, trainingPrograms, employees }) {
       .filter((p) => p.status === 'upcoming')
       .map((p) => ({
         id: `tr-${p.id}`,
-        icon: '🎓',
+        icon: 'learning',
         title: `Upcoming training: ${p.title}`,
         body: `${p.type} • ${p.date || p.duration}${p.location ? ` • ${p.location}` : ''}`,
         time: p.date || null,
@@ -287,7 +288,7 @@ function NotificationBell({ announcements, trainingPrograms, employees }) {
       .filter((e) => e.performance < 80)
       .map((e) => ({
         id: `emp-${e.id}`,
-        icon: '⚠️',
+        icon: 'warn',
         title: `${e.name} needs attention`,
         body: `Performance is at ${e.performance}% (below 80%).`,
         time: null,
@@ -295,6 +296,11 @@ function NotificationBell({ announcements, trainingPrograms, employees }) {
         nav: 'performance',
       })),
   ].sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1))
+
+  const handleNavigate = (nav) => {
+    if (typeof onNavigate === 'function') onNavigate(nav)
+    setOpen(false)
+  }
 
   const panelRef = useRef(null)
 
@@ -330,17 +336,22 @@ return (
               <div className="notif-empty">You're all caught up! 🎉</div>
             ) : (
               notifications.map((n) => (
-                <div key={n.id} className={`notif-item ${n.pinned ? 'pinned' : ''}`}>
-                  <span className="notif-item-icon">{n.icon}</span>
+                <button
+                  key={n.id}
+                  className={`notif-item ${n.pinned ? 'pinned' : ''}`}
+                  onClick={() => handleNavigate(n.nav)}
+                >
+                  <span className="notif-item-icon"><Icon name={n.icon} size={22} /></span>
                   <div className="notif-item-content">
                     <div className="notif-item-title">{n.title}</div>
                     <div className="notif-item-body">{n.body}</div>
                     <div className="notif-item-meta">
                       <span className={`notif-cat cat-${n.category ? n.category.toLowerCase() : ''}`}>{n.category}</span>
                       {n.time ? <span className="notif-time">{n.time}</span> : null}
+                      <span className="notif-goto"><Icon name="arrowRight" size={12} /></span>
                     </div>
                   </div>
-                </div>
+                </button>
               ))
             )}
           </div>
@@ -769,6 +780,7 @@ default:
               announcements={announcements}
               trainingPrograms={trainingPrograms}
               employees={employees}
+              onNavigate={(mod) => { setActiveModule(mod); setMobileMenuOpen(false) }}
             />
 <button className="btn-cancel" onClick={onLogout} type="button">
               <Icon name="logout" size={16} /> Logout

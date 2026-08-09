@@ -17,3 +17,11 @@ Replace placeholder text/emoji icons with a clean, consistent SVG icon system an
 ## Done
 The unified SVG icon system and UI polish are complete, committed, and pushed to GitHub.
 
+## Additional enhancement: clickable notifications
+- [x] Made each notification in the NotificationBell clickable
+- [x] Notifications navigate to their related module (announcements → Announcements, training → Learning, low performance → Performance)
+- [x] Replaced emoji notification icons with SVG icons + themed icon containers
+- [x] Added hover state with arrow indicator
+- [x] Wired `onNavigate` prop from AppContent to NotificationBell
+- [x] Build + lint pass (0 warnings/errors)
+
