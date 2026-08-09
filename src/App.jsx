@@ -3807,9 +3807,10 @@ const [stage, setStage] = useState('email') // 'email' | 'otp' | 'register'
     }
 
 const normalized = otp.trim()
-    // Accept a 6-digit numeric code.
-    if (!normalized || normalized.length !== 6) {
-      setError('Enter the 6-digit code')
+    // Accept a 6-8 digit numeric code. Supabase projects can be configured to
+    // send either a 6 or 8 character OTP, so we accept either length.
+    if (!normalized || normalized.length < 6 || normalized.length > 8) {
+      setError('Enter the verification code (6-8 digits)')
       return
     }
 
@@ -4063,15 +4064,15 @@ const featureCards = [
                   </div>
                 ) : null}
 <label className="login-field">
-                  <span>6-digit code</span>
+                  <span>Verification code</span>
                   <input
                     type="text"
                     placeholder="••••••"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
                     inputMode="numeric"
-                    pattern="[0-9]{6}"
-                    maxLength="6"
+                    pattern="[0-9]{6,8}"
+                    maxLength="8"
                     required
                   />
                 </label>
