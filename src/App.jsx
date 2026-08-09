@@ -3724,9 +3724,11 @@ function LoginScreen({ onLogin }) {
       return
     }
 
-    const normalized = otp.trim()
-    if (!normalized || normalized.length !== 6) {
-      setError('Enter the 6-digit code')
+const normalized = otp.trim()
+    // Supabase can generate 6- or 8-digit OTP codes depending on its config,
+    // so accept a variable-length numeric code (6-8 digits).
+    if (!normalized || normalized.length < 6 || normalized.length > 8) {
+      setError('Enter the 6-8 digit code')
       return
     }
 
@@ -3841,9 +3843,9 @@ const featureCards = [
 <div className="login-card-head">
               <span className="login-card-icon"><Icon name="shield" size={26} /></span>
               <h1 className="login-title">{stage === 'otp' ? 'Verify Code' : 'Welcome Back'}</h1>
-              <p className="login-subtitle">
+<p className="login-subtitle">
                 {stage === 'otp'
-                  ? `Enter the 6-digit code sent to ${pendingEmail}.`
+                  ? `Enter the verification code sent to ${pendingEmail}.`
                   : 'Sign in with your email. We will send a one-time code.'}
               </p>
             </div>
@@ -3882,15 +3884,16 @@ const featureCards = [
                     <span className="login-demo-value">{demoOtp}</span>
                   </div>
                 ) : null}
-                <label className="login-field">
-                  <span>6-digit code</span>
+<label className="login-field">
+                  <span>Verification code</span>
                   <input
                     type="text"
-                    placeholder="••••••"
+                    placeholder="••••••••"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
                     inputMode="numeric"
-                    pattern="[0-9]{6}"
+                    pattern="[0-9]{6,8}"
+                    maxLength="8"
                     required
                   />
                 </label>
