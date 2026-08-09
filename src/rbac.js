@@ -10,16 +10,16 @@
 // The 6 application modules (Dashboard is always visible to all authenticated
 // users; it is the default landing view).
 export const MODULES = [
-  { id: 'dashboard', label: 'Dashboard', icon: '●' },
-  { id: 'performance', label: 'Performance', icon: '●' },
-  { id: 'competency', label: 'Competency', icon: '●' },
-  { id: 'aiCompetency', label: 'AI Competency', icon: '●' },
-  { id: 'learning', label: 'Learning & Training', icon: '●' },
-  { id: 'succession', label: 'Succession', icon: '●' },
-  { id: 'recognition', label: 'Recognition', icon: '●' },
-  { id: 'accounts', label: 'Accounts', icon: '●' },
-  { id: 'announcements', label: 'Announcements', icon: '●' },
-  { id: 'audit', label: 'Audit Log', icon: '●' },
+  { id: 'dashboard', label: 'Dashboard', icon: 'home' },
+  { id: 'performance', label: 'Performance', icon: 'performance' },
+  { id: 'competency', label: 'Competency', icon: 'competency' },
+  { id: 'aiCompetency', label: 'AI Competency', icon: 'ai' },
+  { id: 'learning', label: 'Learning & Training', icon: 'learning' },
+  { id: 'succession', label: 'Succession', icon: 'succession' },
+  { id: 'recognition', label: 'Recognition', icon: 'recognition' },
+  { id: 'accounts', label: 'Accounts', icon: 'accounts' },
+  { id: 'announcements', label: 'Announcements', icon: 'announcements' },
+  { id: 'audit', label: 'Audit Log', icon: 'audit' },
 ]
 
 // Role definitions.

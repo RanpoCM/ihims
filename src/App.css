@@ -307,6 +307,19 @@ button {
   width: 20px;
   text-align: center;
   font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-link .icon {
+  transition: transform var(--transition);
+}
+
+.nav-link:hover .icon,
+.nav-link.active .icon {
+  transform: scale(1.1);
 }
 
 .nav-user {
@@ -342,18 +355,17 @@ button {
 /* Mobile menu toggle — hidden on desktop */
 .menu-toggle {
   display: none;
-  flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   padding: 6px;
+  color: var(--text-1);
+  border-radius: 8px;
 }
 
-.menu-toggle span {
-  width: 24px;
-  height: 2px;
-  background: var(--text-1);
-  border-radius: 2px;
+.menu-toggle:hover {
+  background: var(--surface-2);
 }
 
 /* ---------- Main content ---------- */
@@ -433,6 +445,63 @@ button {
   justify-content: space-between;
 }
 
+.panel-title-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.learning-stat-icon,
+.rec-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.rec-stat-icon {
+  background: var(--secondary-soft);
+  color: var(--secondary);
+}
+
+/* Search input with leading icon */
+.search-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-with-icon .icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-3);
+  pointer-events: none;
+}
+
+.search-with-icon .search-input {
+  padding-left: 36px;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+.quick-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 /* ---------- Dashboard ---------- */
 .stats-grid {
   display: grid;
@@ -472,6 +541,14 @@ button {
   justify-content: center;
   flex-shrink: 0;
 }
+
+/* Brand accent for specific stat icons */
+.stat-card:nth-child(1) .stat-icon { background: var(--primary-soft); color: var(--primary); }
+.stat-card:nth-child(2) .stat-icon { background: var(--success-soft); color: var(--success); }
+.stat-card:nth-child(3) .stat-icon { background: var(--secondary-soft); color: var(--secondary); }
+.stat-card:nth-child(4) .stat-icon { background: var(--accent-soft); color: var(--accent); }
+.stat-card:nth-child(5) .stat-icon { background: var(--warning-soft); color: var(--warning); }
+.stat-card:nth-child(6) .stat-icon { background: var(--secondary-soft); color: var(--secondary); }
 
 .stat-value {
   font-size: 26px;
@@ -1333,6 +1410,10 @@ button {
 
 .candidate-avatar {
   font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--secondary);
 }
 
 .candidate-name {
@@ -1405,6 +1486,14 @@ button {
 
 .recognition-badge {
   font-size: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.18);
+  color: #fff;
 }
 
 .recognition-date {
@@ -1436,8 +1525,21 @@ button {
 
 .recognition-card-footer {
   display: flex;
+  align-items: center;
   gap: var(--sp-4);
   font-size: var(--fs-xs);
+}
+
+.btn-like,
+.recognition-comment {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.recognition-comment {
+  color: #fff;
+  opacity: 0.9;
 }
 
 .award-grid {
@@ -1457,7 +1559,14 @@ button {
 .award-icon {
   font-size: 30px;
   margin-bottom: var(--sp-3);
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 
 .award-category h3 {
@@ -1496,6 +1605,15 @@ button {
 
 .peer-avatar {
   font-size: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  flex-shrink: 0;
 }
 
 .peer-content {
@@ -4273,6 +4391,10 @@ button {
 .notif-bell-icon {
   font-size: 20px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
 }
 
 .notif-badge {

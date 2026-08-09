@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
+import Icon from './components/Icon'
 import { supabase } from './supabaseClient'
 import GapAnalysisModule from './competency/GapAnalysisModule'
 import { generateAIReply, buildGreeting } from './aiAssistant'
@@ -313,7 +314,7 @@ return (
         onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
         aria-label="Notifications"
       >
-        <span className="notif-bell-icon">🔔</span>
+<span className="notif-bell-icon"><Icon name="bell" size={20} /></span>
         {notifications.length > 0 ? (
           <span className="notif-badge">{notifications.length}</span>
         ) : null}
@@ -747,11 +748,14 @@ default:
       <header className="topbar">
         <div className="topbar-brand">
           <button className="menu-toggle" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Toggle navigation">
-            <span></span>
-            <span></span>
-            <span></span>
+            <Icon name="menu" size={20} />
           </button>
-          <span className="logo-icon">+</span>
+          <span className="logo-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <path d="M12 4v16M4 12h16" />
+              <path d="M9 8l7 8M15 8l-7 8" opacity="0" />
+            </svg>
+          </span>
           <div className="logo-text">
             <span className="hospital-name">AI-Driven HRMS</span>
             <span className="hospital-tagline">Competency Gap Analysis</span>
@@ -766,8 +770,8 @@ default:
               trainingPrograms={trainingPrograms}
               employees={employees}
             />
-            <button className="btn-cancel" onClick={onLogout} type="button">
-              Logout
+<button className="btn-cancel" onClick={onLogout} type="button">
+              <Icon name="logout" size={16} /> Logout
             </button>
           </div>
         </div>
@@ -808,7 +812,12 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
   return (
     <nav className={`sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`} aria-label="Main navigation">
       <div className="nav-brand">
-        <span className="brand-icon">M</span>
+        <span className="brand-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <path d="M12 4v16M4 12h16" />
+            <path d="M9 7.5 15 12l-6 4.5" opacity="0" />
+          </svg>
+        </span>
         <span className="brand-text">IHIMS</span>
       </div>
       <div className="nav-links">
@@ -818,13 +827,13 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
             className={`nav-link ${activeModule === mod.id ? 'active' : ''}`}
             onClick={() => { setActiveModule(mod.id); setMobileMenuOpen(false) }}
           >
-            <span className="nav-icon">{mod.icon}</span>
+            <span className="nav-icon"><Icon name={mod.icon} size={18} /></span>
             <span className="nav-label">{mod.label}</span>
           </button>
         ))}
       </div>
       <div className="nav-user">
-        <span className="user-avatar">A</span>
+        <span className="user-avatar"><Icon name="user" size={18} /></span>
         <span className="user-name">{userName}</span>
 <span className="role-badge">{roleLabel(role)}</span>
       </div>
@@ -860,13 +869,16 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
 
       {/* Global search */}
       <div className="global-search">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="🔍 Search employees, training, recognition, succession..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+<div className="search-with-icon">
+          <Icon name="search" size={16} />
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search employees, training, recognition, succession..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
       </div>
 
       {searchResults && (
@@ -910,44 +922,44 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
         </div>
       )}
 
-<div className="stats-grid">
+      <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-icon">T</div>
+          <div className="stat-icon"><Icon name="accounts" size={22} /></div>
           <div className="stat-content">
             <div className="stat-value"><AnimatedNumber value={employees.length} duration={700} /></div>
             <div className="stat-label">Total Employees</div>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">%</div>
+          <div className="stat-icon"><Icon name="trendUp" size={22} /></div>
           <div className="stat-content">
             <div className="stat-value"><AnimatedNumber value={avgPerformance} suffix="%" /></div>
             <div className="stat-label">Avg Performance</div>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">T</div>
+          <div className="stat-icon"><Icon name="competency" size={22} /></div>
           <div className="stat-content">
             <div className="stat-value"><AnimatedNumber value={avgCompetency} suffix="%" /></div>
             <div className="stat-label">Avg Competency</div>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">+</div>
+          <div className="stat-icon"><Icon name="learning" size={22} /></div>
           <div className="stat-content">
             <div className="stat-value"><AnimatedNumber value={avgTraining} suffix="%" /></div>
             <div className="stat-label">Training Completion</div>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">*</div>
+          <div className="stat-icon"><Icon name="medal" size={22} /></div>
           <div className="stat-content">
             <div className="stat-value"><AnimatedNumber value={totalRecognitions} duration={700} /></div>
             <div className="stat-label">Recognitions This Month</div>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon">L</div>
+          <div className="stat-icon"><Icon name="succession" size={22} /></div>
           <div className="stat-content">
             <div className="stat-value"><AnimatedNumber value={successionCandidates.length} duration={700} /></div>
             <div className="stat-label">Succession Plans</div>
@@ -1035,13 +1047,13 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
           </div>
         </div>
 
-<div className="panel">
-          <h2 className="panel-title">📊 Performance Distribution</h2>
+        <div className="panel">
+          <h2 className="panel-title"><span className="panel-title-icon"><Icon name="performance" size={18} /></span> Performance Distribution</h2>
           <DistributionChart employees={employees} />
         </div>
 
         <div className="panel">
-          <h2 className="panel-title">⚠️ Needs Attention</h2>
+          <h2 className="panel-title"><span className="panel-title-icon"><Icon name="warn" size={18} /></span> Needs Attention</h2>
           <div className="attention-list">
             {[...employees].filter(e => e.performance < 80).slice(0, 5).map(emp => (
               <div key={emp.id} className="attention-item">
@@ -1059,16 +1071,16 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
           <div className="panel">
             <h2 className="panel-title">Quick Actions</h2>
             <div className="quick-actions">
-              <button className="quick-action" onClick={() => {}}>➕ Add Employee</button>
-              <button className="quick-action" onClick={() => {}}>📅 Schedule Training</button>
-              <button className="quick-action" onClick={() => {}}>🏆 Give Recognition</button>
-              <button className="quick-action" onClick={() => {}}>📊 Run Gap Analysis</button>
+              <button className="quick-action" onClick={() => {}}><Icon name="plus" size={16} /> Add Employee</button>
+              <button className="quick-action" onClick={() => {}}><Icon name="calendar" size={16} /> Schedule Training</button>
+              <button className="quick-action" onClick={() => {}}><Icon name="recognition" size={16} /> Give Recognition</button>
+              <button className="quick-action" onClick={() => {}}><Icon name="ai" size={16} /> Run Gap Analysis</button>
             </div>
           </div>
         ) : null}
 
-        <div className="panel">
-          <h2 className="panel-title">📢 Announcements</h2>
+<div className="panel">
+          <h2 className="panel-title"><span className="panel-title-icon"><Icon name="announcements" size={18} /></span> Announcements</h2>
           {sortedAnnouncements.length > 0 ? (
             <div className="dashboard-announcements">
               {sortedAnnouncements.slice(0, 4).map((ann) => (
@@ -1275,7 +1287,7 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
               <p className="module-readonly-note">You have view-only access to this module.</p>
             )}
             <button className="btn-export" onClick={exportCSV}>
-              ⬇ Export CSV
+              <Icon name="download" size={16} /> Export CSV
             </button>
           </div>
 
@@ -1326,9 +1338,9 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
           </div>
         )}
 
-        {trainingNeeds.length > 0 ? (
+{trainingNeeds.length > 0 ? (
           <div className="training-needs-panel">
-            <h2 className="panel-title">🎓 Recommended Training Needs</h2>
+            <h2 className="panel-title"><span className="panel-title-icon"><Icon name="learning" size={18} /></span> Recommended Training Needs</h2>
             <p className="training-needs-subtitle">Employees with a competency gap or low training completion</p>
             <table className="sessions-table">
               <thead>
@@ -1373,7 +1385,7 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
             <h2 className="panel-title">Employee Performance ({filteredEmployees.length})</h2>
             {canEdit && selectedIds.length > 0 ? (
               <button className="btn-delete" onClick={handleBulkDelete}>
-                🗑 Delete Selected ({selectedIds.length})
+                <Icon name="trash" size={16} /> Delete Selected ({selectedIds.length})
               </button>
             ) : null}
           </div>
@@ -1634,7 +1646,7 @@ function CompetencyModule({ competencies, canEdit, employees, addCompetency, upd
 
         {gaps.length > 0 ? (
           <div className="training-needs-panel">
-            <h2 className="panel-title">⚠️ Competency Gaps</h2>
+            <h2 className="panel-title"><span className="panel-title-icon"><Icon name="warn" size={18} /></span> Competency Gaps</h2>
             <p className="training-needs-subtitle">Employees whose competency score is below their performance score</p>
             <div className="gap-visual">
               {gaps.slice(0, 6).map((g) => (
@@ -1807,28 +1819,28 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
 
 <div className="learning-stats">
         <div className="learning-stat">
-          <span className="learning-stat-icon">P</span>
+          <span className="learning-stat-icon"><Icon name="learning" size={26} /></span>
           <div className="learning-stat-content">
             <span className="learning-stat-value"><AnimatedNumber value={trainingPrograms.length} duration={800} /></span>
             <span className="learning-stat-label">Active Programs</span>
           </div>
         </div>
         <div className="learning-stat">
-          <span className="learning-stat-icon">T</span>
+          <span className="learning-stat-icon"><Icon name="accounts" size={26} /></span>
           <div className="learning-stat-content">
             <span className="learning-stat-value"><AnimatedNumber value={398} duration={900} /></span>
             <span className="learning-stat-label">Total Participants</span>
           </div>
         </div>
         <div className="learning-stat">
-          <span className="learning-stat-icon">✓</span>
+          <span className="learning-stat-icon"><Icon name="medal" size={26} /></span>
           <div className="learning-stat-content">
             <span className="learning-stat-value"><AnimatedNumber value={156} duration={900} /></span>
             <span className="learning-stat-label">Certifications Earned</span>
           </div>
         </div>
         <div className="learning-stat">
-          <span className="learning-stat-icon">H</span>
+          <span className="learning-stat-icon"><Icon name="audit" size={26} /></span>
           <div className="learning-stat-content">
             <span className="learning-stat-value"><AnimatedNumber value={1240} duration={900} /></span>
             <span className="learning-stat-label">Training Hours</span>
@@ -2105,7 +2117,7 @@ function SuccessionModule({ successionCandidates, employees, canEdit, addSuccess
                 <h4>Potential Successors</h4>
                 {plan.candidates.map((candidate, idx) => (
                   <div key={idx} className="candidate-item">
-                    <span className="candidate-avatar">+</span>
+                    <span className="candidate-avatar"><Icon name="user" size={18} /></span>
                     <span className="candidate-name">{candidate}</span>
                     <span className={`readiness ${plan.readiness.toLowerCase()}`}>{plan.readiness}</span>
                   </div>
@@ -2318,31 +2330,34 @@ function RecognitionModule({ recognitionAwards, _employees, addRecognition, dele
         )}
       </div>
 
-      <div className="recognition-stats">
+<div className="recognition-stats">
         <div className="rec-stat">
-          <span className="rec-stat-icon">R</span>
+          <span className="rec-stat-icon"><Icon name="medal" size={26} /></span>
           <span className="rec-stat-value"><AnimatedNumber value={recognitionAwards.length} duration={800} /></span>
           <span className="rec-stat-label">Awards This Month</span>
         </div>
         <div className="rec-stat">
-          <span className="rec-stat-icon">A</span>
+          <span className="rec-stat-icon"><Icon name="recognition" size={26} /></span>
           <span className="rec-stat-value"><AnimatedNumber value={234} duration={900} /></span>
           <span className="rec-stat-label">Peer Recognitions</span>
         </div>
         <div className="rec-stat">
-          <span className="rec-stat-icon">S</span>
+          <span className="rec-stat-icon"><Icon name="spark" size={26} /></span>
           <span className="rec-stat-value"><AnimatedNumber value={89} duration={900} /></span>
           <span className="rec-stat-label">Active recognitions</span>
         </div>
         <div className="rec-stat">
-          <span className="rec-stat-icon">C</span>
+          <span className="rec-stat-icon"><Icon name="chat" size={26} /></span>
           <span className="rec-stat-value"><AnimatedNumber value={567} duration={900} /></span>
           <span className="rec-stat-label">Total Comments</span>
         </div>
       </div>
 
-      <div className="search-filter">
-        <input type="text" placeholder="🔍 Search recognition..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="search-input" />
+<div className="search-filter">
+        <div className="search-with-icon">
+          <Icon name="search" size={16} />
+          <input type="text" placeholder="Search recognition..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="search-input" />
+        </div>
         <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
           <option value="All">All Award Types</option>
           {awardTypes.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -2355,9 +2370,11 @@ function RecognitionModule({ recognitionAwards, _employees, addRecognition, dele
           {filteredAwards.map(award => {
             const comments = award.comments || []
             return (
-              <div key={award.id} className="recognition-card">
+<div key={award.id} className="recognition-card">
                 <div className="recognition-card-header">
-                  <span className="recognition-badge">{award.type.includes('Employee') ? 'S' : award.type.includes('Excellence') ? 'H' : award.type.includes('Innovation') ? 'I' : 'R'}</span>
+                  <span className="recognition-badge">
+                    <Icon name={award.type.includes('Employee') ? 'medal' : award.type.includes('Excellence') ? 'shield' : award.type.includes('Innovation') ? 'spark' : 'recognition'} size={26} />
+                  </span>
                   <span className="recognition-date">{award.date}</span>
                 </div>
                 <div className="recognition-card-body">
@@ -2365,11 +2382,11 @@ function RecognitionModule({ recognitionAwards, _employees, addRecognition, dele
                   <p className="recognition-reason">"{award.reason}"</p>
                   <span className="recognition-dept">{award.department}</span>
                 </div>
-                <div className="recognition-card-footer">
+<div className="recognition-card-footer">
                   <button className="recognition-reaction btn-like" onClick={() => toggleLike(award.id)}>
-                    👍 {award.likes || 0}
+                    <Icon name="recognition" size={14} /> {award.likes || 0}
                   </button>
-                  <span className="recognition-comment">💬 {comments.length}</span>
+                  <span className="recognition-comment"><Icon name="chat" size={14} /> {comments.length}</span>
                   {canEdit ? (
                     <button className="btn-delete" onClick={() => handleDelete(award)}>Delete</button>
                   ) : null}
@@ -2399,29 +2416,29 @@ function RecognitionModule({ recognitionAwards, _employees, addRecognition, dele
         </div>
       </div>
 
-      <div className="award-categories">
+<div className="award-categories">
         <h2 className="panel-title">Award Categories</h2>
         <div className="award-grid">
           <div className="award-category">
-            <span className="award-icon">S</span>
+            <span className="award-icon"><Icon name="medal" size={30} /></span>
             <h3>Employee of the Month</h3>
             <p>Outstanding overall performance and commitment</p>
             <span className="award-count">12 awarded this year</span>
           </div>
           <div className="award-category">
-            <span className="award-icon">H</span>
+            <span className="award-icon"><Icon name="shield" size={30} /></span>
             <h3>Excellence in Care</h3>
             <p>Exceptional patient care and compassion</p>
             <span className="award-count">8 awarded this year</span>
           </div>
           <div className="award-category">
-            <span className="award-icon">I</span>
+            <span className="award-icon"><Icon name="spark" size={30} /></span>
             <h3>Innovation Award</h3>
             <p>Creative solutions and process improvements</p>
             <span className="award-count">5 awarded this year</span>
           </div>
           <div className="award-category">
-            <span className="award-icon">R</span>
+            <span className="award-icon"><Icon name="brain" size={30} /></span>
             <h3>Research Excellence</h3>
             <p>Medical research and clinical discoveries</p>
             <span className="award-count">3 awarded this year</span>
@@ -2433,7 +2450,7 @@ function RecognitionModule({ recognitionAwards, _employees, addRecognition, dele
         <h2 className="panel-title">Peer Recognitions</h2>
         <div className="peer-recognition-feed">
           <div className="peer-recognition-item">
-            <span className="peer-avatar">U</span>
+            <span className="peer-avatar"><Icon name="user" size={30} /></span>
             <div className="peer-content">
               <span className="peer-from">Maria Garcia recognized James Wilson</span>
               <p className="peer-message">"Great work on the new patient intake process!"</p>
@@ -2441,7 +2458,7 @@ function RecognitionModule({ recognitionAwards, _employees, addRecognition, dele
             </div>
           </div>
           <div className="peer-recognition-item">
-            <span className="peer-avatar">U</span>
+            <span className="peer-avatar"><Icon name="user" size={30} /></span>
             <div className="peer-content">
               <span className="peer-from">Dr. Sarah Johnson recognized Emily Brown</span>
               <p className="peer-message">"Thank you for your attention to detail in the lab results!"</p>
@@ -2449,7 +2466,7 @@ function RecognitionModule({ recognitionAwards, _employees, addRecognition, dele
             </div>
           </div>
           <div className="peer-recognition-item">
-            <span className="peer-avatar">U</span>
+            <span className="peer-avatar"><Icon name="user" size={30} /></span>
             <div className="peer-content">
               <span className="peer-from">Robert Taylor recognized Dr. Lisa Anderson</span>
               <p className="peer-message">"Wonderful bedside manner with the pediatric patients!"</p>
@@ -2561,7 +2578,7 @@ const _generateReply = (q, ctx) => {
       {open && (
         <div className="ai-bot-panel">
           <div className="ai-bot-header">
-            <span className="ai-bot-avatar">🤖</span>
+            <span className="ai-bot-avatar"><Icon name="chat" size={28} /></span>
             <div>
               <div className="ai-bot-title">IHIMS Assistant</div>
               <div className="ai-bot-status">AI Guide • Online</div>
@@ -2587,8 +2604,8 @@ const _generateReply = (q, ctx) => {
           </form>
         </div>
       )}
-      <button className="ai-bot-fab" onClick={openBot} aria-label="Open AI assistant">
-        {open ? null : <span>🤖</span>}
+<button className="ai-bot-fab" onClick={openBot} aria-label="Open AI assistant">
+        {open ? null : <Icon name="robotAssistant" size={30} />}
       </button>
     </>
   )
@@ -3176,21 +3193,25 @@ function LoginScreen({ onLogin }) {
   }
 
 
-  const featureCards = [
-    { icon: '📈', title: 'Performance Analytics', desc: 'Track performance, competency, and training metrics with live charts.' },
-    { icon: '🧠', title: 'AI Competency Engine', desc: 'Evidence-based gap analysis with personalized development roadmaps.' },
-    { icon: '🎓', title: 'Learning & Certifications', desc: 'Manage training programs, enrollments, and professional growth.' },
-    { icon: '🏆', title: 'Social Recognition', desc: 'Celebrate achievements with awards, likes, and peer recognition.' },
-    { icon: '🔄', title: 'Succession Planning', desc: 'Identify and develop future leaders for key positions.' },
-    { icon: '🔐', title: 'Role-Based Access', desc: 'Secure admin, HR, and staff access with OTP verification.' },
+const featureCards = [
+    { icon: 'performance', title: 'Performance Analytics', desc: 'Track performance, competency, and training metrics with live charts.' },
+    { icon: 'ai', title: 'AI Competency Engine', desc: 'Evidence-based gap analysis with personalized development roadmaps.' },
+    { icon: 'learning', title: 'Learning & Certifications', desc: 'Manage training programs, enrollments, and professional growth.' },
+    { icon: 'recognition', title: 'Social Recognition', desc: 'Celebrate achievements with awards, likes, and peer recognition.' },
+    { icon: 'succession', title: 'Succession Planning', desc: 'Identify and develop future leaders for key positions.' },
+    { icon: 'shield', title: 'Role-Based Access', desc: 'Secure admin, HR, and staff access with OTP verification.' },
   ]
 
   return (
     <div className="landing-shell">
       {/* Top navigation bar */}
       <header className="landing-nav">
-        <div className="landing-brand">
-          <span className="logo-icon">+</span>
+<div className="landing-brand">
+          <span className="logo-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <path d="M12 4v16M4 12h16" />
+            </svg>
+          </span>
           <div className="logo-text">
             <span className="hospital-name">AI-Driven HRMS</span>
             <span className="hospital-tagline">Competency Gap Analysis</span>
@@ -3242,7 +3263,7 @@ function LoginScreen({ onLogin }) {
         <div className="landing-login-wrap">
           <div className="login-card">
 <div className="login-card-head">
-              <span className="login-card-icon">🔐</span>
+              <span className="login-card-icon"><Icon name="shield" size={26} /></span>
               <h1 className="login-title">{stage === 'otp' ? 'Verify Code' : 'Welcome Back'}</h1>
               <p className="login-subtitle">
                 {stage === 'otp'
@@ -3332,9 +3353,9 @@ function LoginScreen({ onLogin }) {
         <h2 className="landing-section-title">Everything your HR team needs</h2>
         <p className="landing-section-sub">One intelligent platform for workforce development and engagement.</p>
         <div className="landing-features-grid">
-          {featureCards.map((f, i) => (
+{featureCards.map((f, i) => (
             <div className="landing-feature-card" key={f.title} style={{ animationDelay: `${i * 80}ms` }}>
-              <span className="landing-feature-icon">{f.icon}</span>
+              <span className="landing-feature-icon"><Icon name={f.icon} size={30} /></span>
               <h3>{f.title}</h3>
               <p>{f.desc}</p>
             </div>
