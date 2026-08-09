@@ -971,13 +971,14 @@ default:
       </header>
 
       <div className="app-body">
-        <Navbar
+<Navbar
           activeModule={activeModule}
           setActiveModule={setActiveModule}
           mobileMenuOpen={mobileMenuOpen}
           setMobileMenuOpen={setMobileMenuOpen}
 userName={roleDisplayName}
           role={role}
+          myPhoto={myPhoto}
         />
 
 <main className="main-content">
@@ -998,7 +999,7 @@ userName={roleDisplayName}
 }
 
 // Navbar Component
-function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOpen, userName, role }) {
+function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOpen, userName, role, myPhoto }) {
   // RBAC: only show modules the role is allowed to see
   const visibleModules = visibleModulesFor(role)
 
@@ -1052,8 +1053,10 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
           </>
         ) : null}
       </div>
-      <div className="nav-user">
-        <span className="user-avatar"><Icon name="user" size={18} /></span>
+<div className="nav-user">
+        <span className="user-avatar">
+          {myPhoto ? <img className="user-avatar-img" src={myPhoto} alt={userName || 'My profile'} /> : <Icon name="user" size={18} />}
+        </span>
         <span className="user-name">{userName}</span>
 <span className="role-badge">{roleLabel(role)}</span>
       </div>
