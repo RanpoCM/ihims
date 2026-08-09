@@ -55,6 +55,30 @@ const getStoredData = (key, fallback) => {
   }
 }
 
+// Reconcile the stored account registry against the seed accounts so that the
+// demo login identities (admin@ihims.local, hr@ihims.local, staff@ihims.local)
+// always resolve to the correct roles, even if a user's browser still holds an
+// older localStorage copy that predates the email field. Matching is done by
+// username; any stored account whose username matches a seed keeps its own
+// data but gains the seed's canonical email/role if missing.
+const getAccountsWithSeeds = () => {
+  const stored = getStoredData('ihims_accounts', initialAccounts)
+  const byUsername = {}
+  stored.forEach((a) => { if (a && a.username) byUsername[a.username.toLowerCase()] = a })
+  // Start from seed to guarantee email + role always exist.
+  const merged = initialAccounts.map((seed) => {
+    const existing = byUsername[seed.username.toLowerCase()]
+    return existing ? { ...seed, ...existing } : { ...seed }
+  })
+  // Append any stored accounts that aren't seed accounts.
+  stored.forEach((a) => {
+    if (a && a.username && !initialAccounts.some((s) => s.username === a.username)) {
+      merged.push(a)
+    }
+  })
+  return merged
+}
+
 
 
 // ---------------------------------------------------------------------------
@@ -470,8 +494,23 @@ function NotificationBell({ announcements, trainingPrograms, employees, onNaviga
   )
 }
 
+// Live clock component for the topbar (date + time, updates every second).
+function LiveClock() {
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
+  return (
+    <span className="date-display">
+      <span className="date-display-date">{now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+      <span className="date-display-time">{now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</span>
+    </span>
+  )
+}
+
 // App Content - localStorage-backed
-function AppContent({ role, userName, onLogout }) {
+function AppContent({ role, userName, userEmail, myPhoto, onUpdateMyPhoto, onLogout }) {
   const [employees, setEmployees] = useState(() => getStoredData('ihims_employees', initialEmployees))
   const [trainingPrograms, setTrainingPrograms] = useState(() => getStoredData('ihims_training', initialTrainingPrograms))
   const [competencies, setCompetencies] = useState(() => getStoredData('ihims_competencies', initialCompetencies))
@@ -532,7 +571,7 @@ useEffect(() => { emitDataChange('ihims_succession', successionCandidates) }, [s
   useEffect(() => { emitDataChange('ihims_registrations', registrations) }, [registrations])
   useEffect(() => { emitDataChange('ihims_announcements', announcements) }, [announcements])
 
-const actor = { name: userName || role, role }
+const actor = { name: userName || role, role, email: userEmail }
 
   const nextId = (arr) => {
     return arr.length > 0 ? Math.max(...arr.map((x) => Number(x.id) || 0)) + 1 : 1
@@ -730,12 +769,22 @@ const deleteAccount = (id) => {
     appendAudit({ user: actor.name, role, action: 'bulk_delete', module: 'performance', detail: `Bulk-deleted ${ids.length} employee record(s)` })
   }
 
-  // Update an employee's photo (or any settings-level field).
+// Update an employee's photo (or any settings-level field).
   const updateEmployeePhoto = (id, photo) => {
     requireEdit(role, 'settings')
     const target = employees.find((e) => e.id === id)
     setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, photo } : e)))
     appendAudit({ user: actor.name, role, action: 'update', module: 'settings', detail: `Updated profile photo for "${target?.name || id}"` })
+  }
+
+// Update the logged-in user's own profile photo (persisted per user in the
+  // session store so it survives reloads).
+  const updateMyPhoto = (photo) => {
+    const s = getStoredSession()
+    const next = { ...s, photo }
+    setStoredSession(next)
+    if (typeof onUpdateMyPhoto === 'function') onUpdateMyPhoto(photo)
+    appendAudit({ user: actor.name, role, action: 'update', module: 'settings', detail: 'Updated own profile photo' })
   }
 
 const renderModule = () => {
@@ -852,12 +901,18 @@ case 'accounts':
             userName={actor.name}
           />
         )
-      case 'settings':
+case 'settings':
         return (
-          <SettingsModule
+<SettingsModule
             employees={employees}
+            accounts={accounts}
             canEdit={canEditModule(role, 'settings')}
             updateEmployeePhoto={updateEmployeePhoto}
+            updateMyPhoto={updateMyPhoto}
+            myPhoto={myPhoto}
+            role={role}
+            userName={actor.name}
+            userEmail={actor.email}
           />
         )
       case 'audit':
@@ -898,7 +953,7 @@ default:
           </div>
         </div>
 <div className="header-info">
-          <span className="date-display">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          <LiveClock />
           <span className="status-indicator"><span className="status-dot"></span> Online</span>
           <div className="header-actions">
 <NotificationBell
@@ -3117,16 +3172,24 @@ function AuditModule() {
             </tr>
           </thead>
           <tbody>
-            {filtered.slice(0, 200).map((r) => (
+{filtered.slice(0, 200).map((r) => {
+              const d = new Date(r.timestamp)
+              const tsDate = isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+              const tsTime = isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })
+              return (
               <tr key={r.id}>
-                <td>{new Date(r.timestamp).toLocaleString()}</td>
+                <td>
+                  <span className="audit-ts-date">{tsDate}</span>
+                  <span className="audit-ts-time">{tsTime}</span>
+                </td>
                 <td><strong>{r.user}</strong></td>
                 <td><span className={`status-badge ${r.role === 'admin' ? 'excellent' : r.role === 'hr' ? 'good' : 'needs-improvement'}`}>{r.role}</span></td>
-                <td>{r.action}</td>
+<td>{r.action}</td>
                 <td>{r.module}</td>
                 <td>{r.detail}</td>
               </tr>
-            ))}
+              )
+            })}
             {filtered.length === 0 ? (
               <tr><td colSpan="6" style={{ textAlign: 'center', padding: 24 }}>No audit events recorded yet.</td></tr>
             ) : null}
@@ -3137,15 +3200,19 @@ function AuditModule() {
   )
 }
 
-// Settings Module — employee profiles with photos. Admin/HR can add/update
-// profile pictures; all roles can view the directory.
-function SettingsModule({ employees, canEdit, updateEmployeePhoto }) {
+// Settings Module — System Settings with a "My Profile" section (own photo)
+// and an employee directory with photos (admin/HR can manage).
+function SettingsModule({ employees, accounts, canEdit, updateEmployeePhoto, updateMyPhoto, myPhoto, role, userName, userEmail }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterDept, setFilterDept] = useState('All')
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
 
   const departments = [...new Set(employees.map((e) => e.department).filter(Boolean))]
+  const myEmail = userEmail
+  const myAccount = (accounts || []).find(
+    (a) => (a.email || '').toLowerCase() === (myEmail || '').toLowerCase() || (a.username || '').toLowerCase() === (userName || '').toLowerCase()
+  )
 
   const filtered = employees.filter((e) => {
     const matchesSearch = `${e.name} ${e.role} ${e.department}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -3153,10 +3220,8 @@ function SettingsModule({ employees, canEdit, updateEmployeePhoto }) {
     return matchesSearch && matchesDept
   })
 
-  // Convert an uploaded image file to a base64 data URL so it persists in
-  // localStorage alongside the employee record.
-  const handlePhotoUpload = (emp, file) => {
-    if (!canEdit) return
+  // Read an image file and call the provided callback with a base64 data URL.
+  const readImageFile = (file, onOk) => {
     if (!file) return
     if (!file.type.startsWith('image/')) {
       setErr('Please select a valid image file.')
@@ -3171,8 +3236,7 @@ function SettingsModule({ employees, canEdit, updateEmployeePhoto }) {
     const reader = new FileReader()
     reader.onload = () => {
       try {
-        updateEmployeePhoto(emp.id, reader.result)
-        setMsg(`Profile photo updated for ${emp.name}.`)
+        onOk(reader.result)
         setErr('')
       } catch (ex) {
         setErr(ex.message || 'Failed to update photo')
@@ -3184,6 +3248,35 @@ function SettingsModule({ employees, canEdit, updateEmployeePhoto }) {
       setMsg('')
     }
     reader.readAsDataURL(file)
+  }
+
+  // Update the logged-in user's own profile photo.
+  const handleMyPhotoUpload = (file) => {
+    readImageFile(file, (dataUrl) => {
+      updateMyPhoto(dataUrl)
+      setMsg('Your profile picture has been updated.')
+    })
+  }
+
+  const handleMyPhotoRemove = () => {
+    try {
+      updateMyPhoto(null)
+      setMsg('Your profile picture has been removed.')
+      setErr('')
+    } catch (ex) {
+      setErr(ex.message || 'Failed to remove photo')
+      setMsg('')
+    }
+  }
+
+  // Convert an uploaded image file to a base64 data URL so it persists in
+  // localStorage alongside the employee record.
+  const handlePhotoUpload = (emp, file) => {
+    if (!canEdit) return
+    readImageFile(file, (dataUrl) => {
+      updateEmployeePhoto(emp.id, dataUrl)
+      setMsg(`Profile photo updated for ${emp.name}.`)
+    })
   }
 
   const removePhoto = (emp) => {
@@ -3200,27 +3293,69 @@ function SettingsModule({ employees, canEdit, updateEmployeePhoto }) {
 
   return (
     <div className="module">
-      <h1 className="page-title">Settings & Employee Profiles</h1>
+      <h1 className="page-title">System Settings</h1>
       <p className="page-subtitle">
-        Manage staff directory and profile photos. {canEdit ? 'Admin/HR can upload and update profile pictures.' : 'View-only access to the staff directory.'}
+        Manage your profile, organization preferences, and the staff directory.
       </p>
 
       {msg ? <div className="account-msg success">{msg}</div> : null}
       {err ? <div className="account-msg error">{err}</div> : null}
 
-      <div className="search-filter">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search employees..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <select value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
-          <option value="All">All Departments</option>
-          {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-        </select>
+      {/* My Profile card */}
+      <div className="settings-profile-card">
+        <div className="settings-profile-avatar-wrap">
+          {myPhoto ? (
+            <img className="settings-profile-avatar" src={myPhoto} alt={userName || 'My profile'} />
+          ) : (
+            <div className="settings-profile-avatar settings-profile-avatar--placeholder">
+              <Icon name="user" size={40} />
+            </div>
+          )}
+          <div className="settings-profile-actions">
+            <label className="settings-photo-btn" title="Upload profile picture">
+              <Icon name="camera" size={16} />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => { handleMyPhotoUpload(e.target.files[0]); e.target.value = '' }}
+              />
+            </label>
+            {myPhoto ? (
+              <button className="settings-photo-btn settings-photo-btn--remove" title="Remove profile picture" onClick={handleMyPhotoRemove}>
+                <Icon name="trash" size={16} />
+              </button>
+            ) : null}
+          </div>
+        </div>
+        <div className="settings-profile-info">
+          <h2>{userName || 'My Profile'}</h2>
+          <div className="settings-profile-meta">
+            <span className="role-badge">{roleLabel(role)}</span>
+            {myEmail ? <span className="settings-profile-email">{myEmail}</span> : null}
+            {myAccount ? <span className="settings-profile-email">{myAccount.username}</span> : null}
+          </div>
+          <p className="settings-profile-desc">
+            This is your personal profile. Upload a profile picture so colleagues can recognize you across the system.
+          </p>
+        </div>
       </div>
+
+      {/* Staff directory */}
+      <div className="settings-directory-section">
+        <h2 className="panel-title"><span className="panel-title-icon"><Icon name="accounts" size={18} /></span> Staff Directory</h2>
+        <div className="search-filter">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search employees..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <select value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
+            <option value="All">All Departments</option>
+            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
 
       <div className="settings-directory">
         {filtered.map((emp) => (
@@ -3275,7 +3410,8 @@ function SettingsModule({ employees, canEdit, updateEmployeePhoto }) {
             ) : null}
           </div>
         ))}
-        {filtered.length === 0 ? <div className="attention-empty">No employees match your search.</div> : null}
+{filtered.length === 0 ? <div className="attention-empty">No employees match your search.</div> : null}
+        </div>
       </div>
     </div>
   )
@@ -3359,9 +3495,11 @@ function LoginScreen({ onLogin }) {
     setInfo('')
     setBusy(true)
 
-// Look up the account by email to map the role after verification.
-    const accounts = getStoredData('ihims_accounts', initialAccounts)
-    const account = accounts.find((a) => (a.email || '').toLowerCase() === em)
+// Look up the account by email (falling back to username) to map the role.
+    const accounts = getAccountsWithSeeds()
+    const account = accounts.find(
+      (a) => (a.email || '').toLowerCase() === em || (a.username || '').toLowerCase() === em
+    )
 
     // Allow any valid email to request a Supabase OTP. If it matches a
     // registered account, use its role; otherwise default to 'staff'.
@@ -3457,11 +3595,13 @@ function LoginScreen({ onLogin }) {
         if (error) throw error
       }
 
-// Map role from the account registry using the verified email.
-      // If the email isn't in the registry (e.g. a brand-new Supabase user),
-      // fall back to a default 'staff' role so login still completes.
-      const accounts = getStoredData('ihims_accounts', initialAccounts)
-      const account = accounts.find((a) => (a.email || '').toLowerCase() === pendingEmail)
+// Map role from the account registry using the verified email (falling back
+      // to username). If the email isn't in the registry (e.g. a brand-new
+      // Supabase user), fall back to a default 'staff' role so login completes.
+      const accounts = getAccountsWithSeeds()
+      const account = accounts.find(
+        (a) => (a.email || '').toLowerCase() === pendingEmail || (a.username || '').toLowerCase() === pendingEmail
+      )
       const role = account?.role || 'staff'
       const name = account?.name || roleLabel(role)
 
@@ -3671,6 +3811,12 @@ function App() {
     setSession(null)
   }
 
+  // Update the logged-in user's profile photo in the in-memory session so the
+  // UI reflects the change immediately (also persisted via updateMyPhoto).
+  const handleUpdateMyPhoto = (photo) => {
+    setSession((prev) => (prev ? { ...prev, photo } : prev))
+  }
+
 // Wrap AppContent with a role-aware controller (RBAC).
   const role = session?.role || 'staff'
 
@@ -3682,6 +3828,9 @@ function App() {
 <AppContent
           role={role}
           userName={session?.name}
+          userEmail={session?.email}
+          myPhoto={session?.photo}
+          onUpdateMyPhoto={handleUpdateMyPhoto}
           onLogout={handleLogout}
         />
       )}
