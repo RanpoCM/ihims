@@ -55,6 +55,40 @@ const getStoredData = (key, fallback) => {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Per-user profile photo persistence.
+// The photo is stored under its own localStorage key (keyed by the user's
+// email), NOT inside the session — so it survives logout/login. The session
+// is cleared on logout, so anything stored only there would be lost.
+// ---------------------------------------------------------------------------
+const PHOTO_KEY_PREFIX = 'ihims_photo_'
+
+const photoKey = (id) => {
+  const k = (id || '').trim().toLowerCase()
+  return k ? `${PHOTO_KEY_PREFIX}${k}` : null
+}
+
+const getStoredUserPhoto = (id) => {
+  const key = photoKey(id)
+  if (!key) return null
+  try {
+    return localStorage.getItem(key) || null
+  } catch {
+    return null
+  }
+}
+
+const setStoredUserPhoto = (id, photo) => {
+  const key = photoKey(id)
+  if (!key) return
+  try {
+    if (photo) localStorage.setItem(key, photo)
+    else localStorage.removeItem(key)
+  } catch {
+    // ignore storage errors
+  }
+}
+
 // Reconcile the stored account registry against the seed accounts so that the
 // demo login identities (admin@ihims.local, hr@ihims.local, staff@ihims.local)
 // always resolve to the correct roles, even if a user's browser still holds an
@@ -777,12 +811,14 @@ const deleteAccount = (id) => {
     appendAudit({ user: actor.name, role, action: 'update', module: 'settings', detail: `Updated profile photo for "${target?.name || id}"` })
   }
 
-// Update the logged-in user's own profile photo (persisted per user in the
-  // session store so it survives reloads).
+// Update the logged-in user's own profile photo. The photo is persisted per
+  // user under its own localStorage key (keyed by email) so it survives logout
+  // and login, and is also kept in the session for immediate UI updates.
   const updateMyPhoto = (photo) => {
     const s = getStoredSession()
     const next = { ...s, photo }
     setStoredSession(next)
+    setStoredUserPhoto(actor.email, photo)
     if (typeof onUpdateMyPhoto === 'function') onUpdateMyPhoto(photo)
     appendAudit({ user: actor.name, role, action: 'update', module: 'settings', detail: 'Updated own profile photo' })
   }
@@ -3844,9 +3880,13 @@ const featureCards = [
 function App() {
   const [session, setSession] = useState(() => getStoredSession())
 
-  const handleLogin = (s) => {
-    setStoredSession({ ...s })
-    setSession(s)
+const handleLogin = (s) => {
+    // Restore the user's saved profile photo (stored per-user so it survives
+    // logout/login — the session itself is cleared on logout).
+    const savedPhoto = getStoredUserPhoto(s.email)
+    const next = savedPhoto ? { ...s, photo: savedPhoto } : { ...s }
+    setStoredSession(next)
+    setSession(next)
   }
 
   const handleLogout = () => {
