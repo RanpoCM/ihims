@@ -7,6 +7,7 @@ import {
   estimateEmployeeCompetencies,
   computeAIReadiness,
   aiReadinessClass,
+  recommendationForCompetency,
 } from './framework'
 
 // Priority rules from spec
@@ -117,6 +118,8 @@ export function analyzeEmployee(employee, { recognitionCount = 0 } = {}) {
     const gap = Math.max(0, requiredLevel - currentLevel)
     const priority = priorityForGap(gap)
     const risk = riskForGap(gap)
+    // Tailored, competency- and role-specific development plan.
+    const dev = recommendationForCompetency(comp.id, employee.role)
     return {
       competencyId: comp.id,
       competencyName: comp.name,
@@ -129,6 +132,13 @@ export function analyzeEmployee(employee, { recognitionCount = 0 } = {}) {
       risk: risk.label,
       riskLevel: risk.level,
       businessImpact: gap > 0 ? businessImpact(comp.id) : 'No gap identified.',
+      recommendation: dev
+        ? {
+            why: dev.why,
+            actions: dev.actions,
+            certification: dev.certification,
+          }
+        : null,
     }
   })
 

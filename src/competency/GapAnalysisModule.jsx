@@ -110,7 +110,7 @@ function EmployeeDashboard({ analysis }) {
         </div>
       </div>
 
-      <div className="gap-panel">
+<div className="gap-panel">
         <h4>Personalized Learning Roadmap</h4>
         <div className="gap-roadmap">
           {a.roadmap.map((phase) => (
@@ -126,7 +126,27 @@ function EmployeeDashboard({ analysis }) {
         </div>
       </div>
 
-      <div className="gap-panel">
+      {/* Tailored development actions by top gap */}
+      {(() => {
+        const topGap = a.gaps.filter((g) => g.gap > 0)[0]
+        if (!topGap || !topGap.recommendation) return null
+        return (
+          <div className="gap-panel">
+            <h4>Priority Development Plan — {topGap.competencyName}</h4>
+            <p className="gap-rec-why">{topGap.recommendation.why}</p>
+            <ul className="gap-rec-actions">
+              {topGap.recommendation.actions.map((act, i) => (
+                <li key={i}><span className="gap-rec-kind">{act.kind}:</span> {act.title}</li>
+              ))}
+            </ul>
+            {topGap.recommendation.certification ? (
+              <div className="gap-rec-cert">🎓 Target certification: {topGap.recommendation.certification}</div>
+            ) : null}
+          </div>
+        )
+      })()}
+
+<div className="gap-panel">
         <h4>Explainability & Recommendations</h4>
         {a.developmentAreas.length === 0 ? (
           <p>This employee meets all required competency levels. Maintain current development and explore stretch assignments.</p>
@@ -137,6 +157,19 @@ function EmployeeDashboard({ analysis }) {
                 <strong>{g.competencyName}</strong> — gap of {g.gap} level(s) ({scoreLabel(g.currentLevel)} → {scoreLabel(g.requiredLevel)}).
                 <div className="gap-impact">Impact: {g.businessImpact}</div>
                 <div className="gap-risk">Risk: {g.risk} · Priority: {g.priority}</div>
+                {g.recommendation ? (
+                  <div className="gap-recommendation">
+                    <div className="gap-rec-why">{g.recommendation.why}</div>
+                    <ul className="gap-rec-actions">
+                      {g.recommendation.actions.slice(0, 3).map((act, i) => (
+                        <li key={i}><span className="gap-rec-kind">{act.kind}:</span> {act.title}</li>
+                      ))}
+                    </ul>
+                    {g.recommendation.certification ? (
+                      <div className="gap-rec-cert">🎓 Target certification: {g.recommendation.certification}</div>
+                    ) : null}
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>

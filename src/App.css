@@ -2599,6 +2599,58 @@ button {
   border-left: 3px solid var(--primary);
 }
 
+/* Tailored recommendation block inside each explained gap */
+.gap-recommendation {
+  margin-top: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--secondary);
+}
+
+.gap-rec-why {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  margin-bottom: var(--sp-2);
+  line-height: 1.5;
+}
+
+.gap-rec-actions {
+  list-style: none;
+  padding-left: 0;
+  margin: 0 0 var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gap-rec-actions li {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-1);
+  border-left: none;
+}
+
+.gap-rec-kind {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--primary);
+  margin-right: 4px;
+}
+
+.gap-rec-cert {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--secondary);
+  background: var(--secondary-soft);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
 .gap-impact {
   margin-top: 4px;
   font-size: var(--fs-xs);

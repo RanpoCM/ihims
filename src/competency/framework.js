@@ -95,6 +95,196 @@ export const requiredLevelsForRole = (role) => {
   return REQUIRED_LEVELS_BY_ROLE[role] || REQUIRED_LEVELS_BY_ROLE.default
 }
 
+// ---------------------------------------------------------------------------
+// Competency-specific development recommendations
+//
+// Each competency maps to a set of concrete, tailored development actions
+// (courses, coaching, certifications, on-the-job experiences) and a clear
+// "why this matters" rationale. Roles can further tailor the actions.
+// ---------------------------------------------------------------------------
+
+// Role-tier hints used to tailor language per seniority.
+const roleTier = (role) => {
+  const r = (role || '').toLowerCase()
+  if (/chief|officer|director|head|vp|executive/.test(r)) return 'leadership'
+  if (/manager|lead|senior|supervisor/.test(r)) return 'senior'
+  return 'core'
+}
+
+export const COMPETENCY_DEVELOPMENT = {
+  jobKnowledge: {
+    why: 'Foundational understanding of role-specific duties, policies, and procedures.',
+    actions: [
+      { kind: 'Course', title: 'Role Essentials & Policy Orientation' },
+      { kind: 'Coaching', title: '1-on-1 onboarding with a senior peer' },
+      { kind: 'Reading', title: 'Standard operating procedures & handbook' },
+      { kind: 'Practice', title: 'Shadowing rotation across core duties' },
+    ],
+    certification: 'Role-Specific Competency Certification',
+  },
+  technicalSkills: {
+    why: 'Hands-on proficiency with the tools and systems used in the role.',
+    actions: [
+      { kind: 'Course', title: 'Advanced Tool & Equipment Mastery' },
+      { kind: 'Workshop', title: 'Hands-on technical skills lab' },
+      { kind: 'Mentoring', title: 'Technical mentor pairing' },
+      { kind: 'Practice', title: 'Guided practice on live workflows' },
+    ],
+    certification: 'Technical Skills Certification Track',
+  },
+  clinicalSkills: {
+    why: 'Direct impact on patient safety, outcomes, and care quality.',
+    actions: [
+      { kind: 'Course', title: 'Advanced Clinical Procedures & Updates' },
+      { kind: 'Certification', title: 'ACLS / BLS / specialty recertification' },
+      { kind: 'Shadowing', title: 'Clinical preceptorship with a senior clinician' },
+      { kind: 'Practice', title: 'Simulation-based clinical drills' },
+    ],
+    certification: 'Board-recognized clinical recertification',
+  },
+  leadership: {
+    why: 'Reduced team effectiveness, engagement, and succession readiness.',
+    actions: [
+      { kind: 'Leadership', title: 'Frontline Leadership Development Program' },
+      { kind: 'Coaching', title: 'Executive coaching for people management' },
+      { kind: 'Project', title: 'Lead a cross-functional improvement project' },
+      { kind: 'Shadowing', title: 'Shadow a senior leader for 2 weeks' },
+    ],
+    certification: 'Management & Leadership Certificate',
+  },
+  communication: {
+    why: 'Affects patient/clinician coordination, handoffs, and satisfaction.',
+    actions: [
+      { kind: 'Course', title: 'High-Impact Clinical Communication' },
+      { kind: 'Workshop', title: 'SBAR & structured handoff workshop' },
+      { kind: 'Coaching', title: 'Communication coaching with feedback' },
+      { kind: 'Practice', title: 'Patient-communication role-play' },
+    ],
+    certification: 'Communication Excellence Badge',
+  },
+  teamwork: {
+    why: 'Reduces cross-functional collaboration and care-team cohesion.',
+    actions: [
+      { kind: 'Course', title: 'Building High-Performing Teams' },
+      { kind: 'Workshop', title: 'Team collaboration & conflict resolution' },
+      { kind: 'Project', title: 'Participate in a cross-department project' },
+      { kind: 'Mentoring', title: 'Peer mentoring buddy program' },
+    ],
+    certification: 'Teamwork Certification',
+  },
+  criticalThinking: {
+    why: 'May lead to suboptimal clinical or operational decisions.',
+    actions: [
+      { kind: 'Course', title: 'Critical Thinking & Clinical Decision-Making' },
+      { kind: 'Workshop', title: 'Case-based analysis workshop' },
+      { kind: 'Coaching', title: 'Structured reasoning coaching' },
+      { kind: 'Practice', title: 'Root-cause analysis simulations' },
+    ],
+    certification: 'Critical Thinking Assessment',
+  },
+  problemSolving: {
+    why: 'Delays resolution of operational and patient-care issues.',
+    actions: [
+      { kind: 'Course', title: 'Structured Problem-Solving Methods' },
+      { kind: 'Workshop', title: 'Lean / Kaizen improvement workshop' },
+      { kind: 'Project', title: 'Own a process-improvement initiative' },
+      { kind: 'Coaching', title: 'Problem-solving coaching sessions' },
+    ],
+    certification: 'Process Improvement Certification',
+  },
+  customerService: {
+    why: 'Affects patient experience and satisfaction scores.',
+    actions: [
+      { kind: 'Course', title: 'Patient & Family Experience Excellence' },
+      { kind: 'Workshop', title: 'Service-recovery & empathy workshop' },
+      { kind: 'Coaching', title: 'Patient-feedback coaching' },
+      { kind: 'Practice', title: 'Service-excellence role-play' },
+    ],
+    certification: 'Service Excellence Badge',
+  },
+  compliance: {
+    why: 'Regulatory, safety, and legal exposure for the organization.',
+    actions: [
+      { kind: 'Course', title: 'Regulatory & Safety Compliance Refresher' },
+      { kind: 'Certification', title: 'Annual compliance certification' },
+      { kind: 'Reading', title: 'Updated regulatory standards & policies' },
+      { kind: 'Practice', title: 'Compliance scenario drills' },
+    ],
+    certification: 'Compliance Certification (annual)',
+  },
+  digitalLiteracy: {
+    why: 'Slows adoption of digital tools and information systems.',
+    actions: [
+      { kind: 'Course', title: 'Digital Workplace & EHR Proficiency' },
+      { kind: 'Workshop', title: 'Hands-on digital tools workshop' },
+      { kind: 'Mentoring', title: 'Digital champion buddy' },
+      { kind: 'Practice', title: 'Guided EHR workflow practice' },
+    ],
+    certification: 'Digital Literacy Certification',
+  },
+  aiLiteracy: {
+    why: 'Limits the ability to adopt and benefit from AI-assisted workflows.',
+    actions: [
+      { kind: 'Course', title: 'AI Foundations for Healthcare Professionals' },
+      { kind: 'Workshop', title: 'Prompt engineering & AI tools lab' },
+      { kind: 'Reading', title: 'Responsible & ethical AI in healthcare' },
+      { kind: 'Practice', title: 'Use an AI assistant on a real task' },
+    ],
+    certification: 'AI Literacy Certification',
+  },
+  dataLiteracy: {
+    why: 'Limits evidence-based decision-making and performance insight.',
+    actions: [
+      { kind: 'Course', title: 'Data Literacy & Metrics for Decision-Making' },
+      { kind: 'Workshop', title: 'Dashboards & reporting interpretation' },
+      { kind: 'Coaching', title: 'Data-driven decision coaching' },
+      { kind: 'Practice', title: 'Analyze a departmental KPI set' },
+    ],
+    certification: 'Data Literacy Certificate',
+  },
+  innovation: {
+    why: 'Limits process and care improvement potential.',
+    actions: [
+      { kind: 'Course', title: 'Innovation & Continuous Improvement' },
+      { kind: 'Workshop', title: 'Design-thinking & ideation workshop' },
+      { kind: 'Project', title: 'Lead/join an innovation sprint' },
+      { kind: 'Shadowing', title: 'Benchmark innovative teams' },
+    ],
+    certification: 'Innovation Contributor Badge',
+  },
+  continuousLearning: {
+    why: 'Stagnates skill development and career growth over time.',
+    actions: [
+      { kind: 'Course', title: 'Personal Learning & Growth Planning' },
+      { kind: 'Coaching', title: 'Career development coaching' },
+      { kind: 'Mentoring', title: 'Long-term mentor relationship' },
+      { kind: 'Project', title: 'Set and track a 6-month learning goal' },
+    ],
+    certification: 'Lifelong Learning Badge',
+  },
+}
+
+// Return a tailored recommendation bundle for a competency, adjusted to the
+// role's seniority tier.
+export function recommendationForCompetency(compId, role) {
+  const base = COMPETENCY_DEVELOPMENT[compId]
+  if (!base) return null
+  const tier = roleTier(role)
+  let actions = base.actions
+  if (tier === 'leadership') {
+    actions = [
+      ...base.actions,
+      { kind: 'Development', title: 'Strategic leadership stretch assignment' },
+    ]
+  } else if (tier === 'senior') {
+    actions = [
+      ...base.actions,
+      { kind: 'Mentoring', title: 'Mentor a junior colleague to reinforce mastery' },
+    ]
+  }
+  return { why: base.why, actions, certification: base.certification }
+}
+
 // Estimate current competency levels for an employee from available data.
 // Deterministic, evidence-based mapping from performance/competency/training scores (0-100)
 // to a 1-5 scale, plus role/recognition adjustments.
