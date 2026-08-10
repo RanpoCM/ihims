@@ -199,9 +199,6 @@ const initialSuccessionCandidates = [
 ]
 
 const initialAccounts = [
-  { id: 1, username: 'admin', password: 'admin123', role: 'admin', status: 'active', name: 'Administrator', email: 'admin@ihims.local' },
-  { id: 2, username: 'hr', password: 'hr123', role: 'hr', status: 'active', name: 'HR Manager', email: 'hr@ihims.local' },
-  { id: 3, username: 'staff', password: 'staff123', role: 'staff', status: 'active', name: 'Staff Member', email: 'staff@ihims.local' },
   // Owner admin accounts — these Gmail addresses always have admin access.
   { id: 4, username: 'carlos18miguel', password: '', role: 'admin', status: 'active', name: 'Carlos Miguel', email: 'carlos18miguel@gmail.com' },
   { id: 5, username: 'ihimsadmin', password: '', role: 'admin', status: 'active', name: 'IHIMS Admin', email: 'ihimsadmin@gmail.com' },
@@ -3661,9 +3658,9 @@ const [stage, setStage] = useState('email') // 'email' | 'otp' | 'register'
 // Real Supabase email OTP is used by default.
   // Set VITE_OTP_DEMO=true only to fall back to a locally-shown demo code.
   const demoOtpEnabled = () => {
-    const v = import.meta.env.VITE_OTP_DEMO
-    return v === 'true' || v === '1'
-  }
+  const v = import.meta.env.VITE_OTP_DEMO
+  return v === 'true' || v === '1'
+  } 
 
   const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000))
 
@@ -3809,9 +3806,9 @@ const [stage, setStage] = useState('email') // 'email' | 'otp' | 'register'
 const normalized = otp.trim()
     // Accept a 6-8 digit numeric code. Supabase projects can be configured to
     // send either a 6 or 8 character OTP, so we accept either length.
-    if (!normalized || normalized.length < 6 || normalized.length > 8) {
-      setError('Enter the verification code (6-8 digits)')
-      return
+    if (!normalized || normalized.length !== 6) {
+    setError('Enter the 6-digit verification code')
+    return
     }
 
     setBusy(true)
