@@ -3926,7 +3926,7 @@ const featureCards = [
         <div className="landing-nav-links">
           <a href="#features">Features</a>
           <a href="#about">About</a>
-          <a href="mailto:admin@ihims.local">Contact</a>
+          <a href="#contact">Contact</a>
         </div>
       </header>
 
@@ -4117,7 +4117,24 @@ value={otp}
           ))}
         </div>
       </section>
+      {/* Contact section */}
+      <section className="landing-contact" id="contact">
+      <h2 className="landing-section-title">Contact Us</h2>
 
+      <p className="landing-section-sub">
+     Have questions about IHIMS? We'd love to hear from you.
+      </p>
+
+      <div className="landing-contact-content">
+    <p>
+      Email us at:
+    </p>
+
+    <a href="mailto:ihimsadmin@gmail.com">
+      ihimsadmin@gmail.com
+    </a>
+    </div>
+    </section>
       {/* About / footer */}
       <footer className="landing-footer" id="about">
         <p>
