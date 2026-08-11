@@ -901,6 +901,7 @@ case 'dashboard':
             successionCandidates={successionCandidates}
             announcements={announcements}
             canEdit={role === 'admin' || role === 'hr'}
+            onNavigate={setActiveModule}
           />
         )
 case 'performance':
@@ -1016,6 +1017,7 @@ default:
             successionCandidates={successionCandidates}
             announcements={announcements}
             canEdit={role === 'admin' || role === 'hr'}
+            onNavigate={setActiveModule}
           />
         )
     }
@@ -1155,7 +1157,7 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
 }
 
 // Dashboard Component
-function Dashboard({ employees, trainingPrograms, recognitionAwards, successionCandidates, announcements, canEdit }) {
+function Dashboard({ employees, trainingPrograms, recognitionAwards, successionCandidates, announcements, canEdit, onNavigate }) {
   const avgPerformance = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.performance, 0) / employees.length) : 0
   const avgCompetency = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.competency, 0) / employees.length) : 0
   const avgTraining = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.training, 0) / employees.length) : 0
@@ -1397,10 +1399,10 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
           <div className="panel">
             <h2 className="panel-title">Quick Actions</h2>
             <div className="quick-actions">
-              <button className="quick-action" onClick={() => {}}><Icon name="plus" size={16} /> Add Employee</button>
-              <button className="quick-action" onClick={() => {}}><Icon name="calendar" size={16} /> Schedule Training</button>
-              <button className="quick-action" onClick={() => {}}><Icon name="recognition" size={16} /> Give Recognition</button>
-              <button className="quick-action" onClick={() => {}}><Icon name="ai" size={16} /> Run Gap Analysis</button>
+              <button className="quick-action" onClick={() => onNavigate && onNavigate('performance')}><Icon name="plus" size={16} /> Add Employee</button>
+              <button className="quick-action" onClick={() => onNavigate && onNavigate('learning')}><Icon name="calendar" size={16} /> Schedule Training</button>
+              <button className="quick-action" onClick={() => onNavigate && onNavigate('recognition')}><Icon name="recognition" size={16} /> Give Recognition</button>
+              <button className="quick-action" onClick={() => onNavigate && onNavigate('aiCompetency')}><Icon name="ai" size={16} /> Run Gap Analysis</button>
             </div>
           </div>
         ) : null}
@@ -2122,6 +2124,13 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
   // Only admin / HR can create or delete programs. Staff can only register.
   const canManage = role === 'admin' || role === 'hr'
 
+  // Real upcoming sessions, drawn from the same trainingPrograms data as the
+  // grid above (sorted soonest-first) — replaces the old hardcoded rows so
+  // the Register button here works just like the one on the program cards.
+  const upcomingSessions = [...trainingPrograms]
+    .filter((p) => p.status === 'upcoming')
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+
   return (
     <div className="module">
       <h1 className="page-title">Learning & Training</h1>
@@ -2273,30 +2282,35 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>Emergency Response Training</td>
-              <td>July 5, 2026</td>
-              <td>9:00 AM - 4:00 PM</td>
-              <td>Training Room A</td>
-              <td>15 / 20</td>
-              <td><button className="btn-register">Register</button></td>
-            </tr>
-            <tr>
-              <td>Advanced Cardiac Life Support</td>
-              <td>July 8-9, 2026</td>
-              <td>8:00 AM - 5:00 PM</td>
-              <td>Conference Hall</td>
-              <td>8 / 15</td>
-              <td><button className="btn-register">Register</button></td>
-            </tr>
-            <tr>
-              <td>Patient Safety Protocols</td>
-              <td>July 12, 2026</td>
-              <td>2:00 PM - 5:00 PM</td>
-              <td>Training Room B</td>
-              <td>22 / 30</td>
-              <td><button className="btn-register">Register</button></td>
-            </tr>
+            {upcomingSessions.map((prog) => {
+              const seatsAvailable = prog.seats ? `${prog.participants} / ${prog.seats}` : `${prog.participants}`
+              const isRegistered = registeredIds.has(prog.id)
+              return (
+                <tr key={prog.id}>
+                  <td>{prog.title}</td>
+                  <td>{prog.date || '—'}</td>
+                  <td>{prog.time || '—'}</td>
+                  <td>{prog.location || '—'}</td>
+                  <td>{seatsAvailable}</td>
+                  <td>
+                    {isRegistered ? (
+                      <span className="registered-badge">✓ Registered</span>
+                    ) : (
+                      <button
+                        className="btn-register"
+                        onClick={() => handleRegister(prog.id)}
+                        disabled={!canEdit}
+                      >
+                        Register
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+            {upcomingSessions.length === 0 ? (
+              <tr><td colSpan="6" style={{ textAlign: 'center', padding: 16 }}>No upcoming sessions scheduled.</td></tr>
+            ) : null}
           </tbody>
         </table>
       </div>
@@ -4037,20 +4051,6 @@ const featureCards = [
                 <button type="submit" className="btn-save login-submit" disabled={busy}>
                   {busy ? 'Sending code…' : 'Send Verification Code →'}
                 </button>
-
-<div className="login-demo-hint">
-                  <strong>Demo accounts:</strong> admin@ihims.local • hr@ihims.local • staff@ihims.local
-                  <br />
-                  Only accounts created by an administrator can sign in.
-                  {!hasExistingAdmin ? (
-                    <>
-                      {' '}First time here?{' '}
-                      <button type="button" className="login-link-btn" onClick={() => { setStage('register'); setError(''); setInfo('') }}>
-                        Set up your admin account
-                      </button>
-                    </>
-                  ) : null}
-                </div>
               </form>
             ) : (
 <form onSubmit={handleOtpSubmit} className="login-form">
