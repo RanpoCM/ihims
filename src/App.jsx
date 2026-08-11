@@ -3926,7 +3926,7 @@ const featureCards = [
         <div className="landing-nav-links">
           <a href="#features">Features</a>
           <a href="#about">About</a>
-          <a href="mailto:admin@ihims.local">Contact</a>
+          <a href="mailto:ihimsadmin@gmail.com">Contact</a>
         </div>
       </header>
 
