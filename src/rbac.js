@@ -24,6 +24,10 @@ export const MODULES = [
   { id: 'announcements', label: 'Announcements', icon: 'announcements', featured: false },
   { id: 'audit', label: 'Audit Log', icon: 'audit', featured: false },
   { id: 'settings', label: 'Settings', icon: 'settings', featured: false },
+  { id: 'orgchart', label: 'Org Chart', icon: 'accounts', featured: false },
+  { id: 'reviews', label: 'Performance Reviews', icon: 'performance', featured: false },
+  { id: 'myDevelopment', label: 'My Development', icon: 'ai', featured: false },
+  { id: 'permissions', label: 'Permissions', icon: 'shield', featured: false },
 ]
 
 // Role definitions.
@@ -35,8 +39,8 @@ admin: {
     label: 'Admin',
     description: 'Full control over the entire system.',
 modules: {
-      view: ['dashboard', 'performance', 'competency', 'aiCompetency', 'learning', 'succession', 'recognition', 'accounts', 'announcements', 'audit', 'settings'],
-      edit: ['performance', 'competency', 'learning', 'recognition', 'accounts', 'announcements', 'settings'],
+      view: ['dashboard', 'performance', 'competency', 'aiCompetency', 'learning', 'succession', 'recognition', 'accounts', 'announcements', 'audit', 'settings', 'orgchart', 'reviews', 'myDevelopment', 'permissions'],
+      edit: ['performance', 'competency', 'learning', 'recognition', 'accounts', 'announcements', 'settings', 'reviews', 'permissions'],
     },
   },
 hr: {
@@ -44,8 +48,8 @@ hr: {
     label: 'HR Manager',
     description: 'Manages employee-related information; no system admin privileges.',
     modules: {
-      view: ['dashboard', 'performance', 'competency', 'aiCompetency', 'learning', 'succession', 'recognition', 'announcements', 'settings'],
-      edit: ['performance', 'learning', 'succession', 'recognition', 'announcements', 'settings'],
+      view: ['dashboard', 'performance', 'competency', 'aiCompetency', 'learning', 'succession', 'recognition', 'announcements', 'settings', 'orgchart', 'reviews', 'myDevelopment'],
+      edit: ['performance', 'learning', 'succession', 'recognition', 'announcements', 'settings', 'reviews'],
     },
   },
 staff: {
@@ -53,7 +57,7 @@ staff: {
     label: 'Staff',
     description: 'Can view modules and register for training/certifications.',
     modules: {
-      view: ['dashboard', 'performance', 'competency', 'aiCompetency', 'learning', 'succession', 'recognition', 'announcements', 'settings'],
+      view: ['dashboard', 'performance', 'competency', 'aiCompetency', 'learning', 'succession', 'recognition', 'announcements', 'settings', 'orgchart', 'reviews', 'myDevelopment'],
       // Staff can register for training programs (self-service) but cannot
       // modify other records.
       edit: ['learning'],

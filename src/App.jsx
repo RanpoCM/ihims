@@ -57,6 +57,19 @@ const getStoredData = (key, fallback) => {
   }
 }
 
+// Simple numeric setting reader (e.g. training budget) — getStoredData above
+// is array-only, so plain numbers use their own tiny helper.
+const getStoredNumber = (key, fallback) => {
+  try {
+    const raw = localStorage.getItem(key)
+    if (raw === null) return fallback
+    const n = Number(raw)
+    return Number.isFinite(n) ? n : fallback
+  } catch {
+    return fallback
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Per-user profile photo persistence.
 // The photo is stored under its own localStorage key (keyed by the user's
@@ -86,6 +99,39 @@ const setStoredUserPhoto = (id, photo) => {
   try {
     if (photo) localStorage.setItem(key, photo)
     else localStorage.removeItem(key)
+  } catch {
+    // ignore storage errors
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Per-user self-service profile (bio + skills), keyed by email like the
+// photo above, so staff can edit their own bio/skills without touching the
+// HR-managed employee record (performance/competency/training stay HR-only).
+// ---------------------------------------------------------------------------
+const PROFILE_KEY_PREFIX = 'ihims_profile_'
+
+const profileKey = (id) => {
+  const k = (id || '').trim().toLowerCase()
+  return k ? `${PROFILE_KEY_PREFIX}${k}` : null
+}
+
+const getStoredUserProfile = (id) => {
+  const key = profileKey(id)
+  if (!key) return { bio: '', skills: [] }
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : { bio: '', skills: [] }
+  } catch {
+    return { bio: '', skills: [] }
+  }
+}
+
+const setStoredUserProfile = (id, profile) => {
+  const key = profileKey(id)
+  if (!key) return
+  try {
+    localStorage.setItem(key, JSON.stringify(profile))
   } catch {
     // ignore storage errors
   }
@@ -208,6 +254,29 @@ const initialAnnouncements = [
   { id: 1, title: 'Welcome to the new IHIMS portal', body: 'We are excited to launch our AI-driven HRMS. Explore performance, learning, and more.', category: 'General', author: 'Administrator', date: '2026-06-01', pinned: true },
   { id: 2, title: 'Mandatory safety drill this Friday', body: 'All staff must attend the emergency response drill at 9:00 AM in Training Room A.', category: 'Safety', author: 'HR Manager', date: '2026-06-20', pinned: false },
   { id: 3, title: 'New certification window opens', body: 'Enrollment for Advanced Cardiac Life Support is now open in the Learning module.', category: 'Training', author: 'HR Manager', date: '2026-06-25', pinned: false },
+]
+
+// ---------------------------------------------------------------------------
+// Permissions matrix (admin-editable). This stores the *desired* view/edit
+// matrix per module/role in localStorage. It does not yet replace rbac.js's
+// hardcoded rules — wiring real enforcement requires editing rbac.js itself.
+// ---------------------------------------------------------------------------
+const PERMISSION_KEY = 'ihims_permission_overrides'
+const ALL_ROLES = ['admin', 'hr', 'staff']
+const MODULE_IDS = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'performance', label: 'Performance' },
+  { id: 'competency', label: 'Competency' },
+  { id: 'aiCompetency', label: 'AI Competency' },
+  { id: 'learning', label: 'Learning' },
+  { id: 'succession', label: 'Succession' },
+  { id: 'recognition', label: 'Recognition' },
+  { id: 'reviews', label: 'Performance Reviews' },
+  { id: 'accounts', label: 'Accounts' },
+  { id: 'announcements', label: 'Announcements' },
+  { id: 'settings', label: 'Settings' },
+  { id: 'audit', label: 'Audit Log' },
+  { id: 'orgchart', label: 'Org Chart' },
 ]
 
 // Simple live-sync event so multiple tabs stay in sync in real time
@@ -596,6 +665,9 @@ const [successionCandidates, setSuccessionCandidates] = useState(() => getStored
 const [accounts, setAccounts] = useState(() => getStoredData('ihims_accounts', initialAccounts))
   const [registrations, setRegistrations] = useState(() => getStoredData('ihims_registrations', []))
   const [announcements, setAnnouncements] = useState(() => getStoredData('ihims_announcements', initialAnnouncements))
+  const [reviewCycles, setReviewCycles] = useState(() => getStoredData('ihims_review_cycles', []))
+  const [reviews, setReviews] = useState(() => getStoredData('ihims_reviews', []))
+  const [trainingBudget, setTrainingBudget] = useState(() => getStoredNumber('ihims_training_budget', 50000))
   const [loading] = useState(false)
   const [loadError] = useState('')
 
@@ -615,6 +687,8 @@ if (e.key === 'ihims_succession') setSuccessionCandidates(parsed)
 if (e.key === 'ihims_accounts') setAccounts(parsed)
         if (e.key === 'ihims_registrations') setRegistrations(parsed)
         if (e.key === 'ihims_announcements') setAnnouncements(parsed)
+        if (e.key === 'ihims_review_cycles') setReviewCycles(parsed)
+        if (e.key === 'ihims_reviews') setReviews(parsed)
       } catch {
         // ignore invalid JSON
       }
@@ -629,6 +703,8 @@ if (e.key === 'ihims_accounts') setAccounts(parsed)
       if (key === 'ihims_accounts') setAccounts(value)
       if (key === 'ihims_registrations') setRegistrations(value)
       if (key === 'ihims_announcements') setAnnouncements(value)
+      if (key === 'ihims_review_cycles') setReviewCycles(value)
+      if (key === 'ihims_reviews') setReviews(value)
     }
     window.addEventListener('storage', onStorage)
     window.addEventListener('ihims-data-change', onCustom)
@@ -647,6 +723,13 @@ useEffect(() => { emitDataChange('ihims_succession', successionCandidates) }, [s
   useEffect(() => { emitDataChange('ihims_accounts', accounts) }, [accounts])
   useEffect(() => { emitDataChange('ihims_registrations', registrations) }, [registrations])
   useEffect(() => { emitDataChange('ihims_announcements', announcements) }, [announcements])
+  useEffect(() => { emitDataChange('ihims_review_cycles', reviewCycles) }, [reviewCycles])
+  useEffect(() => { emitDataChange('ihims_reviews', reviews) }, [reviews])
+  useEffect(() => {
+    try { localStorage.setItem('ihims_training_budget', String(trainingBudget)) } catch {
+      // ignore storage errors
+    }
+  }, [trainingBudget])
 
 const actor = { name: userName || role, role, email: userEmail }
 
@@ -877,6 +960,92 @@ const deleteAccount = (id) => {
     appendAudit({ user: actor.name, role, action: 'update', module: 'settings', detail: 'Updated own profile photo' })
   }
 
+  // ---- Full data backup (Admin) --------------------------------------------
+  const exportBackup = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      employees, trainingPrograms, competencies, recognitionAwards,
+      successionCandidates, accounts, registrations, announcements,
+      reviewCycles, reviews, trainingBudget,
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `ihims_backup_${new Date().toISOString().split('T')[0]}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    appendAudit({ user: actor.name, role, action: 'export', module: 'accounts', detail: 'Exported full data backup' })
+  }
+
+  const importBackup = (payload) => {
+    requireEdit(role, 'accounts')
+    if (Array.isArray(payload.employees)) setEmployees(payload.employees)
+    if (Array.isArray(payload.trainingPrograms)) setTrainingPrograms(payload.trainingPrograms)
+    if (Array.isArray(payload.competencies)) setCompetencies(payload.competencies)
+    if (Array.isArray(payload.recognitionAwards)) setRecognitionAwards(payload.recognitionAwards)
+    if (Array.isArray(payload.successionCandidates)) setSuccessionCandidates(payload.successionCandidates)
+    if (Array.isArray(payload.accounts)) setAccounts(payload.accounts)
+    if (Array.isArray(payload.registrations)) setRegistrations(payload.registrations)
+    if (Array.isArray(payload.announcements)) setAnnouncements(payload.announcements)
+    if (Array.isArray(payload.reviewCycles)) setReviewCycles(payload.reviewCycles)
+    if (Array.isArray(payload.reviews)) setReviews(payload.reviews)
+    if (typeof payload.trainingBudget === 'number') setTrainingBudget(payload.trainingBudget)
+    appendAudit({ user: actor.name, role, action: 'import', module: 'accounts', detail: 'Restored data from backup file' })
+  }
+
+  // ---- Performance review cycles (HR/Admin manage, everyone self-assesses) -
+  const addReviewCycle = (cycle) => {
+    requireEdit(role, 'reviews')
+    const newRow = { ...cycle, id: nextId(reviewCycles), status: cycle.status || 'open' }
+    setReviewCycles((prev) => [...prev, newRow])
+    appendAudit({ user: actor.name, role, action: 'create', module: 'reviews', detail: `Created review cycle "${newRow.title}"` })
+  }
+
+  const updateReviewCycleStatus = (id, status) => {
+    requireEdit(role, 'reviews')
+    setReviewCycles((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
+    appendAudit({ user: actor.name, role, action: 'update', module: 'reviews', detail: `Set review cycle status to "${status}"` })
+  }
+
+  const deleteReviewCycle = (id) => {
+    requireEdit(role, 'reviews')
+    setReviewCycles((prev) => prev.filter((c) => c.id !== id))
+    setReviews((prev) => prev.filter((r) => r.cycleId !== id))
+    appendAudit({ user: actor.name, role, action: 'delete', module: 'reviews', detail: 'Deleted review cycle' })
+  }
+
+  const submitSelfAssessment = (cycleId, text) => {
+    const existing = reviews.find((r) => r.cycleId === cycleId && r.employeeName === actor.name)
+    if (existing) {
+      setReviews((prev) => prev.map((r) => (r.id === existing.id ? { ...r, selfAssessment: text, status: r.status === 'reviewed' ? 'reviewed' : 'submitted' } : r)))
+    } else {
+      const newRow = { id: nextId(reviews), cycleId, employeeName: actor.name, selfAssessment: text, managerRating: null, managerComments: '', status: 'submitted' }
+      setReviews((prev) => [...prev, newRow])
+    }
+    appendAudit({ user: actor.name, role, action: 'update', module: 'reviews', detail: 'Submitted self-assessment' })
+  }
+
+  const submitManagerReview = (reviewId, rating, comments) => {
+    requireEdit(role, 'reviews')
+    setReviews((prev) => prev.map((r) => (r.id === reviewId ? { ...r, managerRating: rating, managerComments: comments, status: 'reviewed' } : r)))
+    appendAudit({ user: actor.name, role, action: 'update', module: 'reviews', detail: 'Completed manager review' })
+  }
+
+  // ---- Training budget (HR/Admin) ------------------------------------------
+  const updateTrainingBudget = (amount) => {
+    requireEdit(role, 'learning')
+    setTrainingBudget(Number(amount) || 0)
+    appendAudit({ user: actor.name, role, action: 'update', module: 'learning', detail: `Set training budget to $${Number(amount) || 0}` })
+  }
+
+  // ---- Peer recognition (open to every logged-in user) ---------------------
+  const giveShoutout = (rec) => {
+    const newRow = { ...rec, id: nextId(recognitionAwards), type: 'Peer Recognition', peer: true, giver: actor.name, likes: 0, comments: [] }
+    setRecognitionAwards((prev) => [...prev, newRow])
+    appendAudit({ user: actor.name, role, action: 'create', module: 'recognition', detail: `Gave a peer shout-out to "${newRow.recipient}"` })
+  }
+
 const renderModule = () => {
     // RBAC: verify view permission (throws 403 if denied), show a 403 page.
     try {
@@ -900,6 +1069,9 @@ case 'dashboard':
             recognitionAwards={recognitionAwards}
             successionCandidates={successionCandidates}
             announcements={announcements}
+            reviewCycles={reviewCycles}
+            reviews={reviews}
+            role={role}
             canEdit={role === 'admin' || role === 'hr'}
             onNavigate={setActiveModule}
           />
@@ -945,6 +1117,8 @@ case 'learning':
             canEdit={canEditModule(role, 'learning')}
             role={role}
             userName={actor.name}
+            trainingBudget={trainingBudget}
+            updateTrainingBudget={updateTrainingBudget}
           />
         )
       case 'succession':
@@ -968,16 +1142,22 @@ case 'recognition':
             toggleLike={toggleRecognitionLike}
             addComment={addRecognitionComment}
             canEdit={canEditModule(role, 'recognition')}
+            giveShoutout={giveShoutout}
+            currentUser={actor.name}
           />
         )
 case 'accounts':
         return (
           <AccountsModule
             accounts={accounts}
+            employees={employees}
             canEdit={canEditModule(role, 'accounts')}
             addAccount={addAccount}
             updateAccount={updateAccount}
             deleteAccount={deleteAccount}
+            role={role}
+            exportBackup={exportBackup}
+            importBackup={importBackup}
           />
         )
       case 'announcements':
@@ -1008,6 +1188,27 @@ case 'settings':
         )
       case 'audit':
         return <AuditModule />
+      case 'orgchart':
+        return <OrgChartModule employees={employees} />
+      case 'myDevelopment':
+        return <MyDevelopmentModule employees={employees} accounts={accounts} userName={actor.name} userEmail={actor.email} />
+      case 'permissions':
+        return <PermissionsModule canEdit={canEditModule(role, 'permissions')} />
+      case 'reviews':
+        return (
+          <ReviewsModule
+            reviewCycles={reviewCycles}
+            reviews={reviews}
+            employees={employees}
+            canManage={canEditModule(role, 'reviews')}
+            userName={actor.name}
+            addReviewCycle={addReviewCycle}
+            updateReviewCycleStatus={updateReviewCycleStatus}
+            deleteReviewCycle={deleteReviewCycle}
+            submitSelfAssessment={submitSelfAssessment}
+            submitManagerReview={submitManagerReview}
+          />
+        )
 default:
         return (
           <Dashboard
@@ -1016,6 +1217,9 @@ default:
             recognitionAwards={recognitionAwards}
             successionCandidates={successionCandidates}
             announcements={announcements}
+            reviewCycles={reviewCycles}
+            reviews={reviews}
+            role={role}
             canEdit={role === 'admin' || role === 'hr'}
             onNavigate={setActiveModule}
           />
@@ -1157,7 +1361,7 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
 }
 
 // Dashboard Component
-function Dashboard({ employees, trainingPrograms, recognitionAwards, successionCandidates, announcements, canEdit, onNavigate }) {
+function Dashboard({ employees, trainingPrograms, recognitionAwards, successionCandidates, announcements, reviewCycles, reviews, role, canEdit, onNavigate }) {
   const avgPerformance = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.performance, 0) / employees.length) : 0
   const avgCompetency = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.competency, 0) / employees.length) : 0
   const avgTraining = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.training, 0) / employees.length) : 0
@@ -1177,10 +1381,45 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
     : 0
   const sortedAnnouncements = [...(announcements || [])].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
 
+  // Reminders: certifications expiring within 30 days, and open review
+  // cycles whose period ends within the next 7 days with reviews still
+  // pending or awaiting a manager rating.
+  const daysFromNow = (dateStr) => {
+    if (!dateStr) return null
+    const target = new Date(dateStr)
+    if (isNaN(target.getTime())) return null
+    const now = new Date()
+    return Math.ceil((target.setHours(0, 0, 0, 0) - now.setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24))
+  }
+  const expiringCerts = (trainingPrograms || []).filter((p) => {
+    if (p.type !== 'Certification' || !p.expiresOn) return false
+    const d = daysFromNow(p.expiresOn)
+    return d !== null && d >= 0 && d <= 30
+  })
+  const reviewsDueSoon = (reviewCycles || [])
+    .filter((c) => c.status === 'open')
+    .flatMap((c) => {
+      const d = daysFromNow(c.periodEnd)
+      if (d === null || d < 0 || d > 7) return []
+      const pending = (reviews || []).filter((r) => r.cycleId === c.id && r.status !== 'reviewed').length
+      return pending > 0 ? [{ cycle: c, pending, daysLeft: d }] : []
+    })
+
   return (
 <div className="dashboard">
       <h1 className="page-title">AI-Driven Human Resource Management System</h1>
       <p className="page-subtitle">Competency Gap Analysis for Performance and Development</p>
+
+      <div className="quick-actions" style={{ marginBottom: 16 }}>
+        <button className="quick-action" onClick={() => onNavigate && onNavigate('orgchart')}><Icon name="accounts" size={16} /> Org Chart</button>
+        <button className="quick-action" onClick={() => onNavigate && onNavigate('myDevelopment')}><Icon name="ai" size={16} /> My Development Plan</button>
+        {canEdit ? (
+          <button className="quick-action" onClick={() => onNavigate && onNavigate('reviews')}><Icon name="performance" size={16} /> Performance Reviews</button>
+        ) : null}
+        {role === 'admin' ? (
+          <button className="quick-action" onClick={() => onNavigate && onNavigate('permissions')}><Icon name="shield" size={16} /> Manage Permissions</button>
+        ) : null}
+      </div>
 
       {/* Global search */}
       <div className="global-search">
@@ -1395,6 +1634,29 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
           </div>
         </div>
 
+        {canEdit ? (
+          <div className="panel">
+            <h2 className="panel-title"><span className="panel-title-icon"><Icon name="warn" size={18} /></span> Reminders</h2>
+            <div className="attention-list">
+              {expiringCerts.map((p) => (
+                <div key={`cert-${p.id}`} className="attention-item">
+                  <span className="attention-name">🎓 {p.title} expires {p.expiresOn}</span>
+                  <span className="attention-value">{daysFromNow(p.expiresOn)}d</span>
+                </div>
+              ))}
+              {reviewsDueSoon.map(({ cycle, pending, daysLeft }) => (
+                <div key={`cycle-${cycle.id}`} className="attention-item">
+                  <span className="attention-name">📝 {cycle.title}: {pending} review(s) pending</span>
+                  <span className="attention-value">{daysLeft}d left</span>
+                </div>
+              ))}
+              {expiringCerts.length === 0 && reviewsDueSoon.length === 0 ? (
+                <div className="attention-empty">Nothing needs attention right now 🎉</div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
 {canEdit ? (
           <div className="panel">
             <h2 className="panel-title">Quick Actions</h2>
@@ -1429,6 +1691,370 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// Org Chart Module - employees grouped by department (view-only, all roles)
+function OrgChartModule({ employees }) {
+  const depts = useMemo(() => {
+    const map = {}
+    employees.forEach((e) => {
+      const d = e.department || 'Unassigned'
+      if (!map[d]) map[d] = []
+      map[d].push(e)
+    })
+    return Object.entries(map).map(([name, list]) => ({
+      name,
+      employees: [...list].sort((a, b) => b.performance - a.performance),
+    }))
+  }, [employees])
+
+  return (
+    <div className="module">
+      <h1 className="page-title">Organization Chart</h1>
+      <p className="page-subtitle">Department structure at a glance</p>
+      <div className="programs-grid">
+        {depts.map((d) => (
+          <div key={d.name} className="program-card">
+            <h3 className="program-title">{d.name} ({d.employees.length})</h3>
+            <div className="training-list">
+              {d.employees.map((e) => (
+                <div key={e.id} className="training-item">
+                  <div className="training-info">
+                    <span className="training-title">{e.name}</span>
+                    <span className="training-meta">{e.role} • {e.performance}% performance</span>
+                  </div>
+                </div>
+              ))}
+              {d.employees.length === 0 ? <div className="attention-empty">No employees in this department.</div> : null}
+            </div>
+          </div>
+        ))}
+        {depts.length === 0 ? <div className="attention-empty">No employees yet.</div> : null}
+      </div>
+    </div>
+  )
+}
+
+// My Development Plan Module - self-service view of the gap engine's
+// recommendations for the logged-in user, reusing the same analysis used in
+// the Succession module's Development Plan modal.
+function MyDevelopmentModule({ employees, accounts, userName, userEmail }) {
+  const myAccount = (accounts || []).find(
+    (a) => (a.email || '').toLowerCase() === (userEmail || '').toLowerCase() || (a.username || '').toLowerCase() === (userName || '').toLowerCase()
+  )
+  // Prefer the explicit link set in Accounts & Access; fall back to matching
+  // by name for accounts created before the link field existed.
+  const linkedEmp = myAccount && myAccount.employeeId != null
+    ? employees.find((e) => e.id === myAccount.employeeId) || null
+    : null
+  const emp = linkedEmp || employees.find((e) => e.name === userName) || null
+  const analysis = emp ? analyzeEmployee(emp) : null
+  const gaps = analysis ? analysis.gaps.filter((g) => g.gap > 0) : []
+
+  return (
+    <div className="module">
+      <h1 className="page-title">My Development Plan</h1>
+      <p className="page-subtitle">Personalized growth recommendations based on your current profile</p>
+      {!emp ? (
+        <div className="attention-empty">
+          No employee record is linked to your account yet. Ask an administrator to set a "Linked Employee" for your
+          account in Accounts &amp; Access (creating one first in the Performance module, if you don't have one yet).
+        </div>
+      ) : (
+        <>
+          <div className="succession-overview">
+            <div className="succession-stat">
+              <span className="succession-stat-value">{analysis.overallScore}%</span>
+              <span className="succession-stat-label">Overall Score</span>
+            </div>
+            <div className="succession-stat">
+              <span className="succession-stat-value">{analysis.promotionReadiness}%</span>
+              <span className="succession-stat-label">Promotion Readiness</span>
+            </div>
+          </div>
+          <div className="training-needs-panel">
+            <h2 className="panel-title">Growth Areas</h2>
+            {gaps.length === 0 ? (
+              <p style={{ color: 'var(--success)', fontWeight: 600 }}>No competency gaps — keep it up, and consider pursuing stretch assignments.</p>
+            ) : (
+              gaps.slice(0, 6).map((g) => (
+                <div key={g.competencyId} className="dev-plan-item">
+                  <div className="dev-plan-head">
+                    <strong>{g.competencyName}</strong>
+                    <span className="gap-pill high">{scoreLabel(g.currentLevel)} → {scoreLabel(g.requiredLevel)}</span>
+                  </div>
+                  {g.recommendation ? (
+                    <>
+                      <p className="dev-plan-why">{g.recommendation.why}</p>
+                      <ul className="dev-plan-actions">
+                        {g.recommendation.actions.slice(0, 3).map((a, i) => (
+                          <li key={i}><strong>{a.kind}:</strong> {a.title}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// Permissions Module (Admin) - editable view/edit matrix per module/role.
+// NOTE: this persists the desired matrix to localStorage, but does not yet
+// change actual enforcement — that still runs through rbac.js's hardcoded
+// rules. Wiring this in for real requires editing rbac.js itself.
+function PermissionsModule({ canEdit }) {
+  const [overrides, setOverrides] = useState(() => {
+    try {
+      const raw = localStorage.getItem(PERMISSION_KEY)
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {}
+    }
+  })
+  const [msg, setMsg] = useState('')
+  const isAdmin = canEdit
+
+  const toggle = (moduleId, kind, r) => {
+    if (!isAdmin) return
+    setOverrides((prev) => {
+      const current = prev[moduleId] || { view: [], edit: [] }
+      const list = current[kind] || []
+      const nextList = list.includes(r) ? list.filter((x) => x !== r) : [...list, r]
+      const nextAll = { ...prev, [moduleId]: { ...current, [kind]: nextList } }
+      try { localStorage.setItem(PERMISSION_KEY, JSON.stringify(nextAll)) } catch {
+        // ignore storage errors
+      }
+      return nextAll
+    })
+    setMsg('Saved.')
+  }
+
+  return (
+    <div className="module">
+      <h1 className="page-title">Permissions</h1>
+      <p className="page-subtitle">Choose which roles can view or edit each module. Admin only.</p>
+      {!isAdmin ? <p className="module-readonly-note">You have view-only access to this module.</p> : null}
+      {msg ? <div className="account-msg success">{msg}</div> : null}
+      <div className="performance-table-panel">
+        <table className="performance-table">
+          <thead>
+            <tr>
+              <th>Module</th>
+              {ALL_ROLES.map((r) => <th key={`v-${r}`}>{roleLabel(r)} View</th>)}
+              {ALL_ROLES.map((r) => <th key={`e-${r}`}>{roleLabel(r)} Edit</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {MODULE_IDS.map((m) => {
+              const ov = overrides[m.id] || { view: [], edit: [] }
+              return (
+                <tr key={m.id}>
+                  <td><strong>{m.label}</strong></td>
+                  {ALL_ROLES.map((r) => (
+                    <td key={`v-${m.id}-${r}`}>
+                      <input type="checkbox" disabled={!isAdmin} checked={ov.view.includes(r)} onChange={() => toggle(m.id, 'view', r)} />
+                    </td>
+                  ))}
+                  {ALL_ROLES.map((r) => (
+                    <td key={`e-${m.id}-${r}`}>
+                      <input type="checkbox" disabled={!isAdmin} checked={ov.edit.includes(r)} onChange={() => toggle(m.id, 'edit', r)} />
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="module-readonly-note">
+        This matrix is saved locally. To make it actually enforce access instead of your current rbac.js rules, share rbac.js and it can be wired in for real.
+      </p>
+    </div>
+  )
+}
+
+// Performance Reviews Module - HR/Admin manage review cycles and rate
+// employees; every logged-in user can submit their own self-assessment.
+function ReviewsModule({ reviewCycles, reviews, employees, canManage, userName, addReviewCycle, updateReviewCycleStatus, deleteReviewCycle, submitSelfAssessment, submitManagerReview }) {
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newCycle, setNewCycle] = useState({ title: '', periodStart: '', periodEnd: '' })
+  const [openCycleId, setOpenCycleId] = useState(null)
+  const [selfText, setSelfText] = useState('')
+  const [ratingDrafts, setRatingDrafts] = useState({})
+  const [msg, setMsg] = useState('')
+
+  const handleAddCycle = (e) => {
+    e.preventDefault()
+    if (!canManage || !newCycle.title) return
+    addReviewCycle(newCycle)
+    setNewCycle({ title: '', periodStart: '', periodEnd: '' })
+    setShowAddForm(false)
+    setMsg('Review cycle created.')
+  }
+
+  const myReviewFor = (cycleId) => reviews.find((r) => r.cycleId === cycleId && r.employeeName === userName)
+
+  const openCycle = reviewCycles.find((c) => c.id === openCycleId) || null
+  const cycleReviews = openCycle ? reviews.filter((r) => r.cycleId === openCycle.id) : []
+
+  return (
+    <div className="module">
+      <h1 className="page-title">Performance Reviews</h1>
+      <p className="page-subtitle">Structured review cycles with self-assessment and manager ratings</p>
+
+      {msg ? <div className="account-msg success">{msg}</div> : null}
+
+      {canManage ? (
+        <div className="form-section">
+          <button className="btn-add" onClick={() => setShowAddForm(!showAddForm)}>
+            {showAddForm ? 'Cancel' : '+ New Review Cycle'}
+          </button>
+          {showAddForm && (
+            <form className="data-form" onSubmit={handleAddCycle}>
+              <input type="text" placeholder="Cycle title (e.g. H1 2026 Review)" value={newCycle.title} onChange={(e) => setNewCycle({ ...newCycle, title: e.target.value })} required />
+              <input type="date" value={newCycle.periodStart} onChange={(e) => setNewCycle({ ...newCycle, periodStart: e.target.value })} />
+              <input type="date" value={newCycle.periodEnd} onChange={(e) => setNewCycle({ ...newCycle, periodEnd: e.target.value })} />
+              <button type="submit" className="btn-save">Create Cycle</button>
+            </form>
+          )}
+        </div>
+      ) : null}
+
+      <div className="training-programs">
+        <h2 className="panel-title">Review Cycles</h2>
+        <div className="programs-grid">
+          {reviewCycles.map((cycle) => {
+            const mine = myReviewFor(cycle.id)
+            const cycleAllReviews = reviews.filter((r) => r.cycleId === cycle.id)
+            return (
+              <div key={cycle.id} className="program-card">
+                <div className="program-header">
+                  <span className={`program-status ${cycle.status === 'open' ? 'upcoming' : 'completed'}`}>{cycle.status}</span>
+                </div>
+                <h3 className="program-title">{cycle.title}</h3>
+                <div className="program-meta">
+                  <span>📅 {cycle.periodStart || '—'} → {cycle.periodEnd || '—'}</span>
+                  <span>📝 {cycleAllReviews.length} submission(s)</span>
+                </div>
+                <div className="program-actions">
+                  <button className="btn-view" onClick={() => { setOpenCycleId(cycle.id); setSelfText(mine ? mine.selfAssessment : '') }}>
+                    {canManage ? 'Open' : mine ? 'View / Edit My Review' : 'Submit Self-Assessment'}
+                  </button>
+                  {canManage ? (
+                    <>
+                      <button className="btn-edit" onClick={() => updateReviewCycleStatus(cycle.id, cycle.status === 'open' ? 'closed' : 'open')}>
+                        {cycle.status === 'open' ? 'Close Cycle' : 'Reopen'}
+                      </button>
+                      <button className="btn-delete" onClick={() => { if (confirm(`Delete cycle "${cycle.title}"?`)) deleteReviewCycle(cycle.id) }}>Delete</button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            )
+          })}
+          {reviewCycles.length === 0 ? <div className="attention-empty">No review cycles yet.</div> : null}
+        </div>
+      </div>
+
+      {openCycle ? (
+        <div className="modal-overlay" onClick={() => setOpenCycleId(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{openCycle.title}</h3>
+              <button className="modal-close" onClick={() => setOpenCycleId(null)} aria-label="Close">&times;</button>
+            </div>
+            <div className="modal-body">
+              {!canManage ? (
+                <>
+                  <p className="profile-label">Your self-assessment</p>
+                  <textarea
+                    className="data-form"
+                    style={{ width: '100%', minHeight: 100 }}
+                    value={selfText}
+                    onChange={(e) => setSelfText(e.target.value)}
+                    placeholder="Summarize your accomplishments, challenges, and goals for this period..."
+                  />
+                  <button
+                    className="btn-save"
+                    style={{ marginTop: 10 }}
+                    onClick={() => { submitSelfAssessment(openCycle.id, selfText); setMsg('Self-assessment submitted.'); setOpenCycleId(null) }}
+                  >
+                    Submit
+                  </button>
+                  {myReviewFor(openCycle.id)?.status === 'reviewed' ? (
+                    <div className="dev-plan-item" style={{ marginTop: 14 }}>
+                      <div className="dev-plan-head">
+                        <strong>Manager Rating</strong>
+                        <span className="gap-pill high">{myReviewFor(openCycle.id).managerRating}/5</span>
+                      </div>
+                      <p className="dev-plan-why">{myReviewFor(openCycle.id).managerComments}</p>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <table className="sessions-table">
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      <th>Self-Assessment</th>
+                      <th>Rating (1-5)</th>
+                      <th>Comments</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cycleReviews.map((r) => {
+                      const draft = ratingDrafts[r.id] || { rating: r.managerRating || 3, comments: r.managerComments || '' }
+                      return (
+                        <tr key={r.id}>
+                          <td><strong>{r.employeeName}</strong></td>
+                          <td style={{ maxWidth: 240 }}>{r.selfAssessment || <em>Not submitted</em>}</td>
+                          <td>
+                            <select
+                              value={draft.rating}
+                              onChange={(e) => setRatingDrafts((prev) => ({ ...prev, [r.id]: { ...draft, rating: Number(e.target.value) } }))}
+                            >
+                              {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+                            </select>
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              value={draft.comments}
+                              onChange={(e) => setRatingDrafts((prev) => ({ ...prev, [r.id]: { ...draft, comments: e.target.value } }))}
+                            />
+                          </td>
+                          <td>
+                            <button
+                              className="btn-save"
+                              onClick={() => { submitManagerReview(r.id, draft.rating, draft.comments); setMsg(`Rated ${r.employeeName}.`) }}
+                            >
+                              Save
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {cycleReviews.length === 0 ? (
+                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: 16 }}>No self-assessments submitted yet.</td></tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setOpenCycleId(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -1558,6 +2184,76 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
     URL.revokeObjectURL(url)
   }
 
+  // CSV Import
+  const importFileRef = useRef(null)
+  const [importMsg, setImportMsg] = useState('')
+
+  const parseCSVLine = (line) => {
+    const result = []
+    let cur = ''
+    let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (inQuotes) {
+        if (ch === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++ } else { inQuotes = false }
+        } else {
+          cur += ch
+        }
+      } else if (ch === '"') {
+        inQuotes = true
+      } else if (ch === ',') {
+        result.push(cur); cur = ''
+      } else {
+        cur += ch
+      }
+    }
+    result.push(cur)
+    return result
+  }
+
+  const handleImportCSV = (file) => {
+    if (!canEdit || !file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || '')
+        const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0)
+        if (lines.length < 2) { setImportMsg('CSV has no data rows.'); return }
+        const headers = parseCSVLine(lines[0]).map((h) => h.trim().toLowerCase())
+        const idx = {
+          name: headers.indexOf('name'),
+          role: headers.indexOf('role'),
+          department: headers.indexOf('department'),
+          performance: headers.indexOf('performance'),
+          competency: headers.indexOf('competency'),
+          training: headers.indexOf('training'),
+        }
+        if (idx.name === -1 || idx.role === -1 || idx.department === -1) {
+          setImportMsg('CSV must include Name, Role, and Department columns.')
+          return
+        }
+        let count = 0
+        for (let i = 1; i < lines.length; i++) {
+          const cols = parseCSVLine(lines[i])
+          const name = (cols[idx.name] || '').trim()
+          const role = (cols[idx.role] || '').trim()
+          const department = (cols[idx.department] || '').trim()
+          if (!name || !role || !department) continue
+          const performance = idx.performance > -1 ? parseInt(cols[idx.performance], 10) || 80 : 80
+          const competency = idx.competency > -1 ? parseInt(cols[idx.competency], 10) || 80 : 80
+          const training = idx.training > -1 ? parseInt(cols[idx.training], 10) || 80 : 80
+          addEmployee({ name, role, department, performance, competency, training })
+          count++
+        }
+        setImportMsg(`Imported ${count} employee(s) from CSV.`)
+      } catch {
+        setImportMsg('Failed to parse CSV file. Please check the format and try again.')
+      }
+    }
+    reader.readAsText(file)
+  }
+
   // Training needs: employees with a competency gap or low training completion
   const trainingNeeds = filteredEmployees
     .filter(e => e.competency < e.performance || e.training < 85)
@@ -1617,7 +2313,22 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
             <button className="btn-export" onClick={exportCSV}>
               <Icon name="download" size={16} /> Export CSV
             </button>
+            {canEdit ? (
+              <>
+                <button className="btn-export" onClick={() => importFileRef.current && importFileRef.current.click()}>
+                  <Icon name="download" size={16} /> Import CSV
+                </button>
+                <input
+                  ref={importFileRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  style={{ display: 'none' }}
+                  onChange={(e) => { handleImportCSV(e.target.files[0]); e.target.value = '' }}
+                />
+              </>
+            ) : null}
           </div>
+          {importMsg ? <div className="account-msg success">{importMsg}</div> : null}
 
 
           {showAddForm && (
@@ -2043,7 +2754,8 @@ function CompetencyModule({ competencies, canEdit, employees, addCompetency, upd
         ) : null}
 
         <div className="competency-assessment">
-          <h2 className="panel-title">Competency Assessment by Department</h2>
+          <h2 className="panel-title">Competency Heatmap by Department</h2>
+          <p className="training-needs-subtitle">Darker green means stronger; amber/red flag departments that need attention</p>
           <table className="assessment-table">
             <thead>
               <tr>
@@ -2057,17 +2769,25 @@ function CompetencyModule({ competencies, canEdit, employees, addCompetency, upd
               </tr>
             </thead>
             <tbody>
-              {deptAssessment.map((d) => (
-                <tr key={d.name}>
-                  <td>{d.name}</td>
-                  <td>{d.clinical}%</td>
-                  <td>{d.communication}%</td>
-                  <td>{d.leadership}%</td>
-                  <td>{d.technical}%</td>
-                  <td>{d.compliance}%</td>
-                  <td><strong>{d.overall}%</strong></td>
-                </tr>
-              ))}
+              {deptAssessment.map((d) => {
+                const heatCell = (val) => ({
+                  background: compColor(val),
+                  color: '#fff',
+                  fontWeight: 600,
+                  textAlign: 'center',
+                })
+                return (
+                  <tr key={d.name}>
+                    <td>{d.name}</td>
+                    <td style={heatCell(d.clinical)}>{d.clinical}%</td>
+                    <td style={heatCell(d.communication)}>{d.communication}%</td>
+                    <td style={heatCell(d.leadership)}>{d.leadership}%</td>
+                    <td style={heatCell(d.technical)}>{d.technical}%</td>
+                    <td style={heatCell(d.compliance)}>{d.compliance}%</td>
+                    <td style={heatCell(d.overall)}><strong>{d.overall}%</strong></td>
+                  </tr>
+                )
+              })}
               {deptAssessment.length === 0 ? (
                 <tr><td colSpan="7" style={{ textAlign: 'center', padding: 16 }}>No employee data available.</td></tr>
               ) : null}
@@ -2080,11 +2800,12 @@ function CompetencyModule({ competencies, canEdit, employees, addCompetency, upd
 }
 
 // Learning & Training Module
-function LearningModule({ trainingPrograms, addTraining, deleteTraining, registerTraining, registrations, canEdit, role, userName }) {
+function LearningModule({ trainingPrograms, addTraining, deleteTraining, registerTraining, registrations, canEdit, role, userName, trainingBudget, updateTrainingBudget }) {
   const [showAddForm, setShowAddForm] = useState(false)
-  const [newProg, setNewProg] = useState({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '' })
+  const [newProg, setNewProg] = useState({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '', expiresOn: '' })
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
+  const [budgetDraft, setBudgetDraft] = useState(trainingBudget)
 
   const handleAddTraining = (e) => {
     e.preventDefault()
@@ -2092,9 +2813,35 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
     if (newProg.title) {
       addTraining(newProg)
       setMsg(`Training program "${newProg.title}" created.`)
-      setNewProg({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '' })
+      setNewProg({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '', expiresOn: '' })
       setShowAddForm(false)
     }
+  }
+
+  // Simple client-side .ics generator for "Add to calendar" on a registration.
+  const buildICS = (prog) => {
+    const dt = (prog.date || '').replace(/-/g, '')
+    const uid = `${prog.id}-${Date.now()}@ihims.local`
+    const lines = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT', `UID:${uid}`, `SUMMARY:${prog.title}`,
+      dt ? `DTSTART:${dt}T090000` : '', dt ? `DTEND:${dt}T170000` : '',
+      prog.location ? `LOCATION:${prog.location}` : '', 'END:VEVENT', 'END:VCALENDAR',
+    ].filter(Boolean)
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${prog.title.replace(/\s+/g, '_')}.ics`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const daysUntil = (dateStr) => {
+    if (!dateStr) return null
+    const target = new Date(dateStr)
+    if (isNaN(target.getTime())) return null
+    const now = new Date()
+    return Math.ceil((target.setHours(0, 0, 0, 0) - now.setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24))
   }
 
   const handleRegister = (programId) => {
@@ -2162,6 +2909,12 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
             <input type="date" value={newProg.date} onChange={e => setNewProg({...newProg, date: e.target.value})} />
             <input type="text" placeholder="Time" value={newProg.time} onChange={e => setNewProg({...newProg, time: e.target.value})} />
             <input type="text" placeholder="Location" value={newProg.location} onChange={e => setNewProg({...newProg, location: e.target.value})} />
+            {newProg.type === 'Certification' ? (
+              <label className="login-field" style={{ display: 'block' }}>
+                <span>Certification expires on (optional)</span>
+                <input type="date" value={newProg.expiresOn} onChange={e => setNewProg({...newProg, expiresOn: e.target.value})} />
+              </label>
+            ) : null}
             <select value={newProg.status} onChange={e => setNewProg({...newProg, status: e.target.value})}>
               <option value="upcoming">Upcoming</option>
               <option value="ongoing">Ongoing</option>
@@ -2204,6 +2957,48 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
             <span className="learning-stat-label">Training Hours</span>
           </div>
         </div>
+      </div>
+
+      <div className="training-needs-panel">
+        <h2 className="panel-title"><span className="panel-title-icon"><Icon name="learning" size={18} /></span> Training Budget</h2>
+        {(() => {
+          const totalSpend = trainingPrograms.reduce((s, p) => s + (Number(p.cost) || 0), 0)
+          const pctUsed = trainingBudget > 0 ? Math.min(100, Math.round((totalSpend / trainingBudget) * 100)) : 0
+          const remaining = trainingBudget - totalSpend
+          return (
+            <>
+              <div className="perf-stat-bar" style={{ marginTop: 8, marginBottom: 10 }}>
+                <div className="perf-stat-fill" style={{ width: `${pctUsed}%`, backgroundColor: pctUsed >= 90 ? '#ef4444' : pctUsed >= 70 ? '#f59e0b' : '#22c55e' }}></div>
+              </div>
+              <div className="learning-stats" style={{ marginBottom: 0 }}>
+                <div className="learning-stat">
+                  <div className="learning-stat-content">
+                    <span className="learning-stat-value">${trainingBudget.toLocaleString()}</span>
+                    <span className="learning-stat-label">Total Budget</span>
+                  </div>
+                </div>
+                <div className="learning-stat">
+                  <div className="learning-stat-content">
+                    <span className="learning-stat-value">${totalSpend.toLocaleString()}</span>
+                    <span className="learning-stat-label">Spent ({pctUsed}%)</span>
+                  </div>
+                </div>
+                <div className="learning-stat">
+                  <div className="learning-stat-content">
+                    <span className="learning-stat-value" style={{ color: remaining < 0 ? '#dc2626' : undefined }}>${remaining.toLocaleString()}</span>
+                    <span className="learning-stat-label">Remaining</span>
+                  </div>
+                </div>
+              </div>
+              {(role === 'admin' || role === 'hr') ? (
+                <div className="data-form" style={{ marginTop: 12 }}>
+                  <input type="number" min="0" value={budgetDraft} onChange={(e) => setBudgetDraft(parseInt(e.target.value, 10) || 0)} />
+                  <button className="btn-save" onClick={() => { updateTrainingBudget(budgetDraft); setMsg('Training budget updated.') }}>Update Budget</button>
+                </div>
+              ) : null}
+            </>
+          )
+        })()}
       </div>
 
 {msg ? <div className="account-msg success">{msg}</div> : null}
@@ -2254,15 +3049,31 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
               <tr>
                 <th>Program</th>
                 <th>Registered On</th>
+                <th>Session Date</th>
+                <th>Countdown</th>
+                <th>Calendar</th>
               </tr>
             </thead>
             <tbody>
-              {myRegistrations.map(r => (
-                <tr key={r.id}>
-                  <td>{r.programTitle}</td>
-                  <td>{new Date(r.registeredOn).toLocaleString()}</td>
-                </tr>
-              ))}
+              {myRegistrations.map(r => {
+                const prog = trainingPrograms.find((p) => p.id === r.programId)
+                const d = prog ? daysUntil(prog.date) : null
+                return (
+                  <tr key={r.id}>
+                    <td>{r.programTitle}</td>
+                    <td>{new Date(r.registeredOn).toLocaleString()}</td>
+                    <td>{prog?.date || '—'}</td>
+                    <td>{d === null ? '—' : d < 0 ? 'Past' : d === 0 ? 'Today' : `${d}d`}</td>
+                    <td>
+                      {prog && prog.date ? (
+                        <button className="btn-export" onClick={() => buildICS(prog)}>
+                          <Icon name="download" size={14} /> .ics
+                        </button>
+                      ) : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -2662,14 +3473,25 @@ function SuccessionModule({ successionCandidates, employees, canEdit, addSuccess
 }
 
 // Social Recognition Module
-function RecognitionModule({ recognitionAwards, _employees, addRecognition, deleteRecognition, toggleLike, addComment, canEdit }) {
+function RecognitionModule({ recognitionAwards, _employees, addRecognition, deleteRecognition, toggleLike, addComment, canEdit, giveShoutout, currentUser }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newAward, setNewAward] = useState({ recipient: '', type: 'Employee of Month', department: '', date: new Date().toISOString().split('T')[0], reason: '' })
+  const [shoutout, setShoutout] = useState({ recipient: '', department: '', reason: '' })
   const [commentInputs, setCommentInputs] = useState({})
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('All')
+
+  const peerShoutouts = [...recognitionAwards].filter((a) => a.peer).sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+
+  const handleShoutoutSubmit = (e) => {
+    e.preventDefault()
+    if (!shoutout.recipient || !shoutout.reason) return
+    giveShoutout({ ...shoutout, date: new Date().toISOString().split('T')[0] })
+    setMsg(`Shout-out posted for "${shoutout.recipient}".`)
+    setShoutout({ recipient: '', department: '', reason: '' })
+  }
 
   const filteredAwards = recognitionAwards.filter((a) => {
     const matchesSearch = `${a.recipient} ${a.department} ${a.reason}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -2716,6 +3538,17 @@ function RecognitionModule({ recognitionAwards, _employees, addRecognition, dele
 
       {msg ? <div className="account-msg success">{msg}</div> : null}
       {err ? <div className="account-msg error">{err}</div> : null}
+
+      <div className="form-section">
+        <h2 className="panel-title">Give a Shout-Out</h2>
+        <p className="training-needs-subtitle">Open to everyone — recognize a colleague right now</p>
+        <form className="data-form" onSubmit={handleShoutoutSubmit}>
+          <input type="text" placeholder="Colleague's name" value={shoutout.recipient} onChange={(e) => setShoutout({ ...shoutout, recipient: e.target.value })} required />
+          <input type="text" placeholder="Department (optional)" value={shoutout.department} onChange={(e) => setShoutout({ ...shoutout, department: e.target.value })} />
+          <input type="text" placeholder="What did they do?" value={shoutout.reason} onChange={(e) => setShoutout({ ...shoutout, reason: e.target.value })} required />
+          <button type="submit" className="btn-save">Post Shout-Out</button>
+        </form>
+      </div>
 
 <div className="form-section">
         {canEdit ? (
@@ -2862,30 +3695,17 @@ function RecognitionModule({ recognitionAwards, _employees, addRecognition, dele
       <div className="peer-recognition">
         <h2 className="panel-title">Peer Recognitions</h2>
         <div className="peer-recognition-feed">
-          <div className="peer-recognition-item">
-            <span className="peer-avatar"><Icon name="user" size={30} /></span>
-            <div className="peer-content">
-              <span className="peer-from">Maria Garcia recognized James Wilson</span>
-              <p className="peer-message">"Great work on the new patient intake process!"</p>
-              <span className="peer-time">2 hours ago</span>
+          {peerShoutouts.slice(0, 10).map((a) => (
+            <div key={a.id} className="peer-recognition-item">
+              <span className="peer-avatar"><Icon name="user" size={30} /></span>
+              <div className="peer-content">
+                <span className="peer-from">{a.giver || 'Someone'} recognized {a.recipient}</span>
+                <p className="peer-message">"{a.reason}"</p>
+                <span className="peer-time">{a.date}</span>
+              </div>
             </div>
-          </div>
-          <div className="peer-recognition-item">
-            <span className="peer-avatar"><Icon name="user" size={30} /></span>
-            <div className="peer-content">
-              <span className="peer-from">Dr. Sarah Johnson recognized Emily Brown</span>
-              <p className="peer-message">"Thank you for your attention to detail in the lab results!"</p>
-              <span className="peer-time">5 hours ago</span>
-            </div>
-          </div>
-          <div className="peer-recognition-item">
-            <span className="peer-avatar"><Icon name="user" size={30} /></span>
-            <div className="peer-content">
-              <span className="peer-from">Robert Taylor recognized Dr. Lisa Anderson</span>
-              <p className="peer-message">"Wonderful bedside manner with the pediatric patients!"</p>
-              <span className="peer-time">1 day ago</span>
-            </div>
-          </div>
+          ))}
+          {peerShoutouts.length === 0 ? <div className="attention-empty">No peer shout-outs yet — be the first!</div> : null}
         </div>
       </div>
     </div>
@@ -3025,16 +3845,16 @@ const _generateReply = (q, ctx) => {
 }
 
 // Accounts Module (admin-only)
-function AccountsModule({ accounts, canEdit, addAccount, updateAccount, deleteAccount }) {
+function AccountsModule({ accounts, employees, canEdit, addAccount, updateAccount, deleteAccount, role, exportBackup, importBackup }) {
 const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [editId, setEditId] = useState(null)
   const [formMsg, setFormMsg] = useState('')
   const [formError, setFormError] = useState('')
-  const [newAcc, setNewAcc] = useState({ username: '', password: '', role: 'staff', status: 'active', name: '', email: '' })
+  const [newAcc, setNewAcc] = useState({ username: '', password: '', role: 'staff', status: 'active', name: '', email: '', employeeId: null })
 
   const resetForm = () => {
-    setNewAcc({ username: '', password: '', role: 'staff', status: 'active', name: '', email: '' })
+    setNewAcc({ username: '', password: '', role: 'staff', status: 'active', name: '', email: '', employeeId: null })
     setFormMsg('')
     setFormError('')
     setShowAddForm(false)
@@ -3068,7 +3888,7 @@ const [showAddForm, setShowAddForm] = useState(false)
 
   const startEdit = (acc) => {
     setEditId(acc.id)
-    setNewAcc({ username: acc.username, password: acc.password, role: acc.role, status: acc.status, name: acc.name || '', email: acc.email || '' })
+    setNewAcc({ username: acc.username, password: acc.password, role: acc.role, status: acc.status, name: acc.name || '', email: acc.email || '', employeeId: acc.employeeId != null ? acc.employeeId : null })
     setShowEditForm(true)
     setShowAddForm(false)
     setFormMsg('')
@@ -3100,6 +3920,44 @@ const accLabel = acc.email || acc.username || acc.id
       {formMsg ? <div className="account-msg success">{formMsg}</div> : null}
       {formError ? <div className="account-msg error">{formError}</div> : null}
 
+      {role === 'admin' ? (
+        <div className="form-section">
+          <h2 className="panel-title">Data Backup</h2>
+          <p className="module-readonly-note">Exports every module's data as one JSON file. Importing replaces all current data.</p>
+          <div className="form-section-header">
+            <button className="btn-export" onClick={exportBackup}>
+              <Icon name="download" size={16} /> Export Full Backup
+            </button>
+            <label className="btn-add" style={{ cursor: 'pointer' }}>
+              Import Backup
+              <input
+                type="file"
+                accept="application/json"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files[0]
+                  e.target.value = ''
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = () => {
+                    try {
+                      const payload = JSON.parse(String(reader.result))
+                      if (confirm('This will replace all current data with the backup file. Continue?')) {
+                        importBackup(payload)
+                        setFormMsg('Backup restored successfully.')
+                      }
+                    } catch {
+                      setFormError('Invalid backup file.')
+                    }
+                  }
+                  reader.readAsText(file)
+                }}
+              />
+            </label>
+          </div>
+        </div>
+      ) : null}
+
       <div className="form-section">
         <button className="btn-add" onClick={() => { if (canEdit) { setShowAddForm(!showAddForm); setShowEditForm(false); setFormMsg(''); setFormError('') } }} disabled={!canEdit}>
           {showAddForm ? 'Cancel' : '+ Add Account'}
@@ -3119,6 +3977,10 @@ const accLabel = acc.email || acc.username || acc.id
             <select value={newAcc.status} onChange={(e) => setNewAcc({ ...newAcc, status: e.target.value })}>
               <option value="active">Active</option>
               <option value="disabled">Disabled</option>
+            </select>
+            <select value={newAcc.employeeId != null ? newAcc.employeeId : ''} onChange={(e) => setNewAcc({ ...newAcc, employeeId: e.target.value ? Number(e.target.value) : null })}>
+              <option value="">— Linked employee (for Development Plan) —</option>
+              {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
             </select>
             <button type="submit" className="btn-save">Create Account</button>
           </form>
@@ -3142,6 +4004,10 @@ const accLabel = acc.email || acc.username || acc.id
               <option value="active">Active</option>
               <option value="disabled">Disabled</option>
             </select>
+            <select value={newAcc.employeeId != null ? newAcc.employeeId : ''} onChange={(e) => setNewAcc({ ...newAcc, employeeId: e.target.value ? Number(e.target.value) : null })}>
+              <option value="">— Linked employee (for Development Plan) —</option>
+              {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+            </select>
             <div className="form-buttons">
               <button type="submit" className="btn-save">Update</button>
               <button type="button" className="btn-cancel" onClick={resetForm}>Cancel</button>
@@ -3160,17 +4026,21 @@ const accLabel = acc.email || acc.username || acc.id
               <th>Name</th>
               <th>Role</th>
               <th>Status</th>
+              <th>Linked Employee</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {accounts.map((acc) => (
+            {accounts.map((acc) => {
+              const linked = employees.find((e) => e.id === acc.employeeId)
+              return (
               <tr key={acc.id}>
                 <td><strong>{acc.email || '—'}</strong></td>
                 <td>{acc.username || '—'}</td>
                 <td>{acc.name || '—'}</td>
                 <td><span className={`status-badge ${acc.role === 'admin' ? 'excellent' : acc.role === 'hr' ? 'good' : 'needs-improvement'}`}>{roleLabel(acc.role)}</span></td>
                 <td><span className={`status-badge ${acc.status === 'active' ? 'excellent' : 'needs-improvement'}`}>{acc.status}</span></td>
+                <td>{linked ? linked.name : <span className="readonly-cell">Not linked</span>}</td>
                 <td>
                   <div className="action-buttons">
                     <button className="btn-edit" onClick={() => startEdit(acc)} disabled={!canEdit}>Edit</button>
@@ -3178,7 +4048,8 @@ const accLabel = acc.email || acc.username || acc.id
                   </div>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -3439,6 +4310,26 @@ function SettingsModule({ employees, accounts, canEdit, updateEmployeePhoto, upd
     (a) => (a.email || '').toLowerCase() === (myEmail || '').toLowerCase() || (a.username || '').toLowerCase() === (userName || '').toLowerCase()
   )
 
+  // Self-service bio/skills, stored per-user (separate from HR-managed
+  // performance/competency/training on the employee record).
+  const [myBio, setMyBio] = useState('')
+  const [mySkills, setMySkills] = useState('')
+  const [profileSaved, setProfileSaved] = useState(false)
+
+  useEffect(() => {
+    const p = getStoredUserProfile(userEmail)
+    setMyBio(p.bio || '')
+    setMySkills((p.skills || []).join(', '))
+  }, [userEmail])
+
+  const saveMyProfile = () => {
+    const profile = { bio: myBio.trim(), skills: mySkills.split(',').map((s) => s.trim()).filter(Boolean) }
+    setStoredUserProfile(userEmail, profile)
+    appendAudit({ user: userName, role, action: 'update', module: 'settings', detail: 'Updated bio/skills' })
+    setProfileSaved(true)
+    setTimeout(() => setProfileSaved(false), 2000)
+  }
+
   const filtered = employees.filter((e) => {
     const matchesSearch = `${e.name} ${e.role} ${e.department}`.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesDept = filterDept === 'All' || e.department === filterDept
@@ -3562,6 +4453,23 @@ function SettingsModule({ employees, accounts, canEdit, updateEmployeePhoto, upd
           <p className="settings-profile-desc">
             This is your personal profile. Upload a profile picture so colleagues can recognize you across the system.
           </p>
+          <div className="data-form" style={{ marginTop: 12 }}>
+            <textarea
+              placeholder="A short bio (visible to colleagues)"
+              value={myBio}
+              onChange={(e) => setMyBio(e.target.value)}
+              rows={2}
+              style={{ gridColumn: '1 / -1' }}
+            />
+            <input
+              type="text"
+              placeholder="Skills (comma separated, e.g. Excel, First Aid, Python)"
+              value={mySkills}
+              onChange={(e) => setMySkills(e.target.value)}
+              style={{ gridColumn: '1 / -1' }}
+            />
+            <button className="btn-save" onClick={saveMyProfile}>{profileSaved ? 'Saved ✓' : 'Save Profile'}</button>
+          </div>
         </div>
       </div>
 
@@ -3926,7 +4834,7 @@ const featureCards = [
         <div className="landing-nav-links">
           <a href="#features">Features</a>
           <a href="#about">About</a>
-          <a href="mailto:ihimsadmin@gmail.com">Contact</a>
+          <a href="mailto:admin@ihims.local">Contact</a>
         </div>
       </header>
 
