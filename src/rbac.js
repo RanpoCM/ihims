@@ -28,6 +28,7 @@ export const MODULES = [
   { id: 'reviews', label: 'Performance Reviews', icon: 'performance', featured: false },
   { id: 'myDevelopment', label: 'My Development', icon: 'ai', featured: false },
   { id: 'permissions', label: 'Permissions', icon: 'shield', featured: false },
+  { id: 'myTeam', label: 'My Team', icon: 'accounts', featured: false },
 ]
 
 // Role definitions.
@@ -39,7 +40,7 @@ admin: {
     label: 'Admin',
     description: 'Full control over the entire system.',
 modules: {
-      view: ['dashboard', 'performance', 'competency', 'aiCompetency', 'learning', 'succession', 'recognition', 'accounts', 'announcements', 'audit', 'settings', 'orgchart', 'reviews', 'myDevelopment', 'permissions'],
+      view: ['dashboard', 'performance', 'competency', 'aiCompetency', 'learning', 'succession', 'recognition', 'accounts', 'announcements', 'audit', 'settings', 'orgchart', 'reviews', 'myDevelopment', 'permissions', 'myTeam'],
       edit: ['performance', 'competency', 'learning', 'recognition', 'accounts', 'announcements', 'settings', 'reviews', 'permissions'],
     },
   },
@@ -48,7 +49,7 @@ hr: {
     label: 'HR Manager',
     description: 'Manages employee-related information; no system admin privileges.',
     modules: {
-      view: ['dashboard', 'performance', 'competency', 'aiCompetency', 'learning', 'succession', 'recognition', 'announcements', 'settings', 'orgchart', 'reviews', 'myDevelopment'],
+      view: ['dashboard', 'performance', 'competency', 'aiCompetency', 'learning', 'succession', 'recognition', 'announcements', 'settings', 'orgchart', 'reviews', 'myDevelopment', 'myTeam'],
       edit: ['performance', 'learning', 'succession', 'recognition', 'announcements', 'settings', 'reviews'],
     },
   },
@@ -65,6 +66,23 @@ staff: {
   },
 }
 
+// Priority order used to pick a single "primary" role for cosmetic display
+// (badges, audit log entries) when an account holds multiple roles. Real
+// permission checks below always consider the FULL role list, never just
+// the primary one.
+export const ROLE_PRIORITY = ['admin', 'hr', 'staff']
+
+export const primaryRoleOf = (roleIds) => {
+  const ids = Array.isArray(roleIds) ? roleIds : [roleIds]
+  return ROLE_PRIORITY.find((r) => ids.includes(r)) || ids[0] || 'staff'
+}
+
+export const rolesLabel = (roleIds) => {
+  const ids = Array.isArray(roleIds) ? roleIds : [roleIds]
+  if (ids.length === 0) return 'Unknown'
+  return ids.map(roleLabel).join(', ')
+}
+
 // ---------------------------------------------------------------------------
 // Permission helpers
 // ---------------------------------------------------------------------------
@@ -73,25 +91,28 @@ export const roleLabel = (roleId) => (ROLES[roleId] ? ROLES[roleId].label : 'Unk
 
 export const isKnownRole = (roleId) => Object.prototype.hasOwnProperty.call(ROLES, roleId)
 
-// Can this role VIEW a given module?
-export const canViewModule = (roleId, moduleId) => {
-  const role = ROLES[roleId]
-  if (!role) return false
-  return role.modules.view.includes(moduleId)
+// Can this role (or ANY role in an array of roles) VIEW a given module?
+export const canViewModule = (roleIdOrIds, moduleId) => {
+  const ids = Array.isArray(roleIdOrIds) ? roleIdOrIds : [roleIdOrIds]
+  return ids.some((id) => ROLES[id] && ROLES[id].modules.view.includes(moduleId))
 }
 
-// Can this role EDIT (create/update/delete) a given module?
-export const canEditModule = (roleId, moduleId) => {
-  const role = ROLES[roleId]
-  if (!role) return false
-  return role.modules.edit.includes(moduleId)
+// Can this role (or ANY role in an array of roles) EDIT a given module?
+export const canEditModule = (roleIdOrIds, moduleId) => {
+  const ids = Array.isArray(roleIdOrIds) ? roleIdOrIds : [roleIdOrIds]
+  return ids.some((id) => ROLES[id] && ROLES[id].modules.edit.includes(moduleId))
 }
 
-// Modules a role can view (for navigation filtering).
-export const visibleModulesFor = (roleId) => {
-  const role = ROLES[roleId]
-  if (!role) return []
-  return MODULES.filter((m) => role.modules.view.includes(m.id))
+// Modules visible for a role or set of roles (for navigation filtering) —
+// union of every assigned role's view list, in MODULES' canonical order.
+export const visibleModulesFor = (roleIdOrIds) => {
+  const ids = Array.isArray(roleIdOrIds) ? roleIdOrIds : [roleIdOrIds]
+  const allowed = new Set()
+  ids.forEach((id) => {
+    const role = ROLES[id]
+    if (role) role.modules.view.forEach((m) => allowed.add(m))
+  })
+  return MODULES.filter((m) => allowed.has(m.id))
 }
 
 // Throw a forbidden error (simulates a 403 response).

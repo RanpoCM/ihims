@@ -8,6 +8,8 @@ import { analyzeEmployee } from './competency/gapEngine'
 import { generateAIReply, buildGreeting } from './aiAssistant'
 import {
   roleLabel,
+  rolesLabel,
+  primaryRoleOf,
   canEditModule,
   visibleModulesFor,
   requireEdit,
@@ -161,6 +163,24 @@ const getAccountsWithSeeds = () => {
   return merged
 }
 
+// Employee reporting hierarchy: returns the ids of everyone who reports to
+// `rootId`, directly or indirectly (BFS over managerEmployeeId), NOT
+// including rootId itself.
+const getTeamIds = (employees, rootId) => {
+  const ids = new Set()
+  const queue = [rootId]
+  while (queue.length) {
+    const current = queue.shift()
+    employees.forEach((e) => {
+      if (e.managerEmployeeId === current && !ids.has(e.id)) {
+        ids.add(e.id)
+        queue.push(e.id)
+      }
+    })
+  }
+  return ids
+}
+
 
 
 // ---------------------------------------------------------------------------
@@ -197,7 +217,9 @@ const createBootstrapAccount = (acc) => {
     password: acc.password,
     name: acc.name,
     role: acc.role || 'admin',
+    roles: acc.roles && acc.roles.length ? acc.roles : [acc.role || 'admin'],
     status: 'active',
+    employeeId: null,
   }
   const next = [...accounts, newRow]
   emitDataChange(ACCOUNTS_KEY, next)
@@ -208,14 +230,14 @@ const createBootstrapAccount = (acc) => {
 // Seed data so the system is functional on first run
 // ---------------------------------------------------------------------------
 const initialEmployees = [
-  { id: 1, name: 'Dr. Sarah Johnson', role: 'Chief Medical Officer', department: 'Cardiology', performance: 95, competency: 92, training: 98 },
-  { id: 2, name: 'Dr. Michael Chen', role: 'Cardiologist', department: 'Cardiology', performance: 91, competency: 88, training: 90 },
-  { id: 3, name: 'James Wilson', role: 'Senior Nurse', department: 'Nursing', performance: 88, competency: 85, training: 92 },
-  { id: 4, name: 'Dr. Lisa Anderson', role: 'Pediatrician', department: 'Pediatrics', performance: 93, competency: 90, training: 95 },
-  { id: 5, name: 'Emily Brown', role: 'Lab Technician', department: 'Laboratory', performance: 84, competency: 82, training: 86 },
-  { id: 6, name: 'Maria Garcia', role: 'Registered Nurse', department: 'Nursing', performance: 86, competency: 84, training: 88 },
-  { id: 7, name: 'Robert Taylor', role: 'Administrator', department: 'Administration', performance: 82, competency: 80, training: 84 },
-  { id: 8, name: 'David Martinez', role: 'HR Manager', department: 'Administration', performance: 80, competency: 78, training: 82 },
+  { id: 1, name: 'Dr. Sarah Johnson', role: 'Chief Medical Officer', department: 'Cardiology', performance: 95, competency: 92, training: 98, managerEmployeeId: null },
+  { id: 2, name: 'Dr. Michael Chen', role: 'Cardiologist', department: 'Cardiology', performance: 91, competency: 88, training: 90, managerEmployeeId: 1 },
+  { id: 3, name: 'James Wilson', role: 'Senior Nurse', department: 'Nursing', performance: 88, competency: 85, training: 92, managerEmployeeId: 1 },
+  { id: 4, name: 'Dr. Lisa Anderson', role: 'Pediatrician', department: 'Pediatrics', performance: 93, competency: 90, training: 95, managerEmployeeId: 1 },
+  { id: 5, name: 'Emily Brown', role: 'Lab Technician', department: 'Laboratory', performance: 84, competency: 82, training: 86, managerEmployeeId: null },
+  { id: 6, name: 'Maria Garcia', role: 'Registered Nurse', department: 'Nursing', performance: 86, competency: 84, training: 88, managerEmployeeId: 3 },
+  { id: 7, name: 'Robert Taylor', role: 'Administrator', department: 'Administration', performance: 82, competency: 80, training: 84, managerEmployeeId: 8 },
+  { id: 8, name: 'David Martinez', role: 'HR Manager', department: 'Administration', performance: 80, competency: 78, training: 82, managerEmployeeId: null },
 ]
 
 const initialTrainingPrograms = [
@@ -246,9 +268,19 @@ const initialSuccessionCandidates = [
 
 const initialAccounts = [
   // Owner admin accounts — these Gmail addresses always have admin access.
-  { id: 4, username: 'carlos18miguel', password: '', role: 'admin', status: 'active', name: 'Carlos Miguel', email: 'carlos18miguel@gmail.com' },
-  { id: 5, username: 'ihimsadmin', password: '', role: 'admin', status: 'active', name: 'IHIMS Admin', email: 'ihimsadmin@gmail.com' },
+  // `roles` is the real, multi-role source of truth; `role` is kept in sync
+  // as a derived "primary" role for cosmetic display (badges, audit log).
+  { id: 4, username: 'carlos18miguel', password: '', role: 'admin', roles: ['admin', 'hr', 'staff'], status: 'active', name: 'Carlos Miguel', email: 'carlos18miguel@gmail.com', employeeId: null },
+  { id: 5, username: 'ihimsadmin', password: '', role: 'admin', roles: ['admin'], status: 'active', name: 'IHIMS Admin', email: 'ihimsadmin@gmail.com', employeeId: null },
 ]
+
+// An account may hold multiple roles at once (e.g. Staff + HR Manager +
+// Admin). `roles` is the source of truth; `role` (singular) is kept as a
+// backwards-compatible fallback for any account created before this existed.
+const getAccountRoles = (acc) => {
+  if (acc && Array.isArray(acc.roles) && acc.roles.length) return acc.roles
+  return acc && acc.role ? [acc.role] : ['staff']
+}
 
 const initialAnnouncements = [
   { id: 1, title: 'Welcome to the new IHIMS portal', body: 'We are excited to launch our AI-driven HRMS. Explore performance, learning, and more.', category: 'General', author: 'Administrator', date: '2026-06-01', pinned: true },
@@ -656,7 +688,7 @@ function LiveClock() {
 }
 
 // App Content - localStorage-backed
-function AppContent({ role, userName, userEmail, myPhoto, onUpdateMyPhoto, onLogout }) {
+function AppContent({ role, roles, userName, userEmail, myPhoto, onUpdateMyPhoto, onLogout }) {
   const [employees, setEmployees] = useState(() => getStoredData('ihims_employees', initialEmployees))
   const [trainingPrograms, setTrainingPrograms] = useState(() => getStoredData('ihims_training', initialTrainingPrograms))
   const [competencies, setCompetencies] = useState(() => getStoredData('ihims_competencies', initialCompetencies))
@@ -671,7 +703,7 @@ const [accounts, setAccounts] = useState(() => getStoredData('ihims_accounts', i
   const [loading] = useState(false)
   const [loadError] = useState('')
 
-const roleDisplayName = useMemo(() => roleLabel(role), [role])
+const roleDisplayName = useMemo(() => rolesLabel(roles), [roles])
 
   // Real-time cross-tab sync: listen for changes made in other tabs/windows
   useEffect(() => {
@@ -733,40 +765,79 @@ useEffect(() => { emitDataChange('ihims_succession', successionCandidates) }, [s
 
 const actor = { name: userName || role, role, email: userEmail }
 
+  // My linked employee record (used for team scoping and My Team/My
+  // Development Plan) — prefers the explicit Linked Employee, falls back to
+  // matching by name for accounts created before that field existed.
+  const myAccountRecord = useMemo(
+    () => accounts.find(
+      (a) => (a.email || '').toLowerCase() === (userEmail || '').toLowerCase() || (a.username || '').toLowerCase() === (userName || '').toLowerCase()
+    ) || null,
+    [accounts, userEmail, userName]
+  )
+  const myEmployee = useMemo(() => {
+    if (myAccountRecord && myAccountRecord.employeeId != null) {
+      const linked = employees.find((e) => e.id === myAccountRecord.employeeId)
+      if (linked) return linked
+    }
+    return employees.find((e) => e.name === actor.name) || null
+  }, [employees, myAccountRecord, actor.name])
+
+  // Team = everyone who reports to me, directly or indirectly (not
+  // including myself). Admins are never scoped; HR (without admin) is
+  // scoped to themselves + their team everywhere employee data is shown.
+  const isAdmin = roles.includes('admin')
+  const isHrOnly = !isAdmin && roles.includes('hr')
+  const teamIds = useMemo(
+    () => (myEmployee ? getTeamIds(employees, myEmployee.id) : new Set()),
+    [employees, myEmployee]
+  )
+  const myTeam = useMemo(
+    () => employees.filter((e) => teamIds.has(e.id)),
+    [employees, teamIds]
+  )
+  // The scoped employee list used everywhere employee data is displayed:
+  // admins and staff see everyone (staff view-only, unchanged); HR-only
+  // accounts see just themselves + their team.
+  const visibleEmployees = useMemo(() => {
+    if (!isHrOnly) return employees
+    if (!myEmployee) return []
+    return employees.filter((e) => e.id === myEmployee.id || teamIds.has(e.id))
+  }, [employees, isHrOnly, myEmployee, teamIds])
+
   const nextId = (arr) => {
     return arr.length > 0 ? Math.max(...arr.map((x) => Number(x.id) || 0)) + 1 : 1
   }
 
   const addEmployee = (emp) => {
-    requireEdit(role, 'performance')
+    requireEdit(roles, 'performance')
     const newRow = { ...emp, id: nextId(employees) }
     setEmployees((prev) => [...prev, newRow])
     appendAudit({ user: actor.name, role, action: 'create', module: 'performance', detail: `Added employee "${newRow.name}"` })
   }
 
   const updateEmployee = (id, data) => {
-    requireEdit(role, 'performance')
+    requireEdit(roles, 'performance')
     const target = employees.find((e) => e.id === id)
     setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, ...data } : e)))
     appendAudit({ user: actor.name, role, action: 'update', module: 'performance', detail: `Updated employee "${target?.name || id}"` })
   }
 
   const deleteEmployee = (id) => {
-    requireEdit(role, 'performance')
+    requireEdit(roles, 'performance')
     const target = employees.find((e) => e.id === id)
     setEmployees((prev) => prev.filter((e) => e.id !== id))
     appendAudit({ user: actor.name, role, action: 'delete', module: 'performance', detail: `Deleted employee "${target?.name || id}"` })
   }
 
   const addTraining = (prog) => {
-    requireEdit(role, 'learning')
+    requireEdit(roles, 'learning')
     const newRow = { ...prog, id: nextId(trainingPrograms) }
     setTrainingPrograms((prev) => [...prev, newRow])
     appendAudit({ user: actor.name, role, action: 'create', module: 'learning', detail: `Added training program "${newRow.title}"` })
   }
 
 const deleteTraining = (id) => {
-    requireEdit(role, 'learning')
+    requireEdit(roles, 'learning')
     const target = trainingPrograms.find((p) => p.id === id)
     setTrainingPrograms((prev) => prev.filter((p) => p.id !== id))
     appendAudit({ user: actor.name, role, action: 'delete', module: 'learning', detail: `Deleted training program "${target?.title || id}"` })
@@ -774,7 +845,7 @@ const deleteTraining = (id) => {
 
   const registerTraining = (programId) => {
     // Staff (and up) can register themselves for training/certifications.
-    requireEdit(role, 'learning')
+    requireEdit(roles, 'learning')
     const program = trainingPrograms.find((p) => p.id === programId)
     if (!program) throw new Error('Program not found')
     if (program.status === 'completed') throw new Error('This program has already been completed')
@@ -792,14 +863,14 @@ const deleteTraining = (id) => {
   }
 
   const addRecognition = (rec) => {
-    requireEdit(role, 'recognition')
+    requireEdit(roles, 'recognition')
     const newRow = { ...rec, id: nextId(recognitionAwards), likes: 0, comments: [] }
     setRecognitionAwards((prev) => [...prev, newRow])
     appendAudit({ user: actor.name, role, action: 'create', module: 'recognition', detail: `Added recognition for "${newRow.recipient}"` })
   }
 
   const deleteRecognition = (id) => {
-    requireEdit(role, 'recognition')
+    requireEdit(roles, 'recognition')
     const target = recognitionAwards.find((a) => a.id === id)
     setRecognitionAwards((prev) => prev.filter((a) => a.id !== id))
     appendAudit({ user: actor.name, role, action: 'delete', module: 'recognition', detail: `Deleted recognition "${target?.recipient || id}"` })
@@ -828,49 +899,49 @@ const deleteTraining = (id) => {
   }
 
 const addCompetency = (comp) => {
-    requireEdit(role, 'competency')
+    requireEdit(roles, 'competency')
     const newRow = { ...comp, weight: Number(comp.weight) || 0, id: nextId(competencies) }
     setCompetencies((prev) => [...prev, newRow])
     appendAudit({ user: actor.name, role, action: 'create', module: 'competency', detail: `Added competency "${newRow.name}"` })
   }
 
   const updateCompetency = (id, data) => {
-    requireEdit(role, 'competency')
+    requireEdit(roles, 'competency')
     const target = competencies.find((c) => c.id === id)
     setCompetencies((prev) => prev.map((c) => (c.id === id ? { ...c, ...data, weight: Number(data.weight) || c.weight } : c)))
     appendAudit({ user: actor.name, role, action: 'update', module: 'competency', detail: `Updated competency "${target?.name || id}"` })
   }
 
   const deleteCompetency = (id) => {
-    requireEdit(role, 'competency')
+    requireEdit(roles, 'competency')
     const target = competencies.find((c) => c.id === id)
     setCompetencies((prev) => prev.filter((c) => c.id !== id))
     appendAudit({ user: actor.name, role, action: 'delete', module: 'competency', detail: `Deleted competency "${target?.name || id}"` })
   }
 
   const addSuccession = (plan) => {
-    requireEdit(role, 'succession')
+    requireEdit(roles, 'succession')
     const newRow = { ...plan, candidates: Array.isArray(plan.candidates) ? plan.candidates : [], id: nextId(successionCandidates) }
     setSuccessionCandidates((prev) => [...prev, newRow])
     appendAudit({ user: actor.name, role, action: 'create', module: 'succession', detail: `Added succession plan for "${newRow.currentRole}"` })
   }
 
   const updateSuccession = (id, data) => {
-    requireEdit(role, 'succession')
+    requireEdit(roles, 'succession')
     const target = successionCandidates.find((c) => c.id === id)
     setSuccessionCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...data, candidates: Array.isArray(data.candidates) ? data.candidates : c.candidates } : c)))
     appendAudit({ user: actor.name, role, action: 'update', module: 'succession', detail: `Updated succession plan "${target?.currentRole || id}"` })
   }
 
   const deleteSuccession = (id) => {
-    requireEdit(role, 'succession')
+    requireEdit(roles, 'succession')
     const target = successionCandidates.find((c) => c.id === id)
     setSuccessionCandidates((prev) => prev.filter((c) => c.id !== id))
     appendAudit({ user: actor.name, role, action: 'delete', module: 'succession', detail: `Deleted succession plan "${target?.currentRole || id}"` })
   }
 
 const addAccount = (acc) => {
-    requireEdit(role, 'accounts')
+    requireEdit(roles, 'accounts')
     const email = (acc.email || '').trim().toLowerCase()
     const username = (acc.username || '').trim().toLowerCase()
     if (!email || !acc.password) {
@@ -891,7 +962,7 @@ const addAccount = (acc) => {
   }
 
   const updateAccount = (id, data) => {
-    requireEdit(role, 'accounts')
+    requireEdit(roles, 'accounts')
     const target = accounts.find((a) => a.id === id)
     const email = (data.email || '').trim().toLowerCase()
     const username = (data.username || '').trim().toLowerCase()
@@ -906,35 +977,35 @@ const addAccount = (acc) => {
   }
 
 const deleteAccount = (id) => {
-    requireEdit(role, 'accounts')
+    requireEdit(roles, 'accounts')
     const target = accounts.find((a) => a.id === id)
     setAccounts((prev) => prev.filter((a) => a.id !== id))
     appendAudit({ user: actor.name, role, action: 'delete', module: 'accounts', detail: `Deleted account "${target?.username || id}"` })
   }
 
   const addAnnouncement = (ann) => {
-    requireEdit(role, 'announcements')
+    requireEdit(roles, 'announcements')
     const newRow = { ...ann, pinned: !!ann.pinned, id: nextId(announcements) }
     setAnnouncements((prev) => [...prev, newRow])
     appendAudit({ user: actor.name, role, action: 'create', module: 'announcements', detail: `Posted announcement "${newRow.title}"` })
   }
 
   const updateAnnouncement = (id, data) => {
-    requireEdit(role, 'announcements')
+    requireEdit(roles, 'announcements')
     const target = announcements.find((a) => a.id === id)
     setAnnouncements((prev) => prev.map((a) => (a.id === id ? { ...a, ...data } : a)))
     appendAudit({ user: actor.name, role, action: 'update', module: 'announcements', detail: `Updated announcement "${target?.title || id}"` })
   }
 
   const deleteAnnouncement = (id) => {
-    requireEdit(role, 'announcements')
+    requireEdit(roles, 'announcements')
     const target = announcements.find((a) => a.id === id)
     setAnnouncements((prev) => prev.filter((a) => a.id !== id))
     appendAudit({ user: actor.name, role, action: 'delete', module: 'announcements', detail: `Removed announcement "${target?.title || id}"` })
   }
 
   const bulkDeleteEmployees = (ids) => {
-    requireEdit(role, 'performance')
+    requireEdit(roles, 'performance')
     const remaining = employees.filter((e) => !ids.includes(e.id))
     setEmployees(remaining)
     appendAudit({ user: actor.name, role, action: 'bulk_delete', module: 'performance', detail: `Bulk-deleted ${ids.length} employee record(s)` })
@@ -942,7 +1013,7 @@ const deleteAccount = (id) => {
 
 // Update an employee's photo (or any settings-level field).
   const updateEmployeePhoto = (id, photo) => {
-    requireEdit(role, 'settings')
+    requireEdit(roles, 'settings')
     const target = employees.find((e) => e.id === id)
     setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, photo } : e)))
     appendAudit({ user: actor.name, role, action: 'update', module: 'settings', detail: `Updated profile photo for "${target?.name || id}"` })
@@ -979,7 +1050,7 @@ const deleteAccount = (id) => {
   }
 
   const importBackup = (payload) => {
-    requireEdit(role, 'accounts')
+    requireEdit(roles, 'accounts')
     if (Array.isArray(payload.employees)) setEmployees(payload.employees)
     if (Array.isArray(payload.trainingPrograms)) setTrainingPrograms(payload.trainingPrograms)
     if (Array.isArray(payload.competencies)) setCompetencies(payload.competencies)
@@ -996,20 +1067,20 @@ const deleteAccount = (id) => {
 
   // ---- Performance review cycles (HR/Admin manage, everyone self-assesses) -
   const addReviewCycle = (cycle) => {
-    requireEdit(role, 'reviews')
+    requireEdit(roles, 'reviews')
     const newRow = { ...cycle, id: nextId(reviewCycles), status: cycle.status || 'open' }
     setReviewCycles((prev) => [...prev, newRow])
     appendAudit({ user: actor.name, role, action: 'create', module: 'reviews', detail: `Created review cycle "${newRow.title}"` })
   }
 
   const updateReviewCycleStatus = (id, status) => {
-    requireEdit(role, 'reviews')
+    requireEdit(roles, 'reviews')
     setReviewCycles((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
     appendAudit({ user: actor.name, role, action: 'update', module: 'reviews', detail: `Set review cycle status to "${status}"` })
   }
 
   const deleteReviewCycle = (id) => {
-    requireEdit(role, 'reviews')
+    requireEdit(roles, 'reviews')
     setReviewCycles((prev) => prev.filter((c) => c.id !== id))
     setReviews((prev) => prev.filter((r) => r.cycleId !== id))
     appendAudit({ user: actor.name, role, action: 'delete', module: 'reviews', detail: 'Deleted review cycle' })
@@ -1027,14 +1098,14 @@ const deleteAccount = (id) => {
   }
 
   const submitManagerReview = (reviewId, rating, comments) => {
-    requireEdit(role, 'reviews')
+    requireEdit(roles, 'reviews')
     setReviews((prev) => prev.map((r) => (r.id === reviewId ? { ...r, managerRating: rating, managerComments: comments, status: 'reviewed' } : r)))
     appendAudit({ user: actor.name, role, action: 'update', module: 'reviews', detail: 'Completed manager review' })
   }
 
   // ---- Training budget (HR/Admin) ------------------------------------------
   const updateTrainingBudget = (amount) => {
-    requireEdit(role, 'learning')
+    requireEdit(roles, 'learning')
     setTrainingBudget(Number(amount) || 0)
     appendAudit({ user: actor.name, role, action: 'update', module: 'learning', detail: `Set training budget to $${Number(amount) || 0}` })
   }
@@ -1049,7 +1120,7 @@ const deleteAccount = (id) => {
 const renderModule = () => {
     // RBAC: verify view permission (throws 403 if denied), show a 403 page.
     try {
-      requireView(role, activeModule)
+      requireView(roles, activeModule)
     } catch (err) {
       return (
         <div className="forbidden">
@@ -1064,7 +1135,7 @@ const renderModule = () => {
 case 'dashboard':
         return (
           <Dashboard
-            employees={employees}
+            employees={visibleEmployees}
             trainingPrograms={trainingPrograms}
             recognitionAwards={recognitionAwards}
             successionCandidates={successionCandidates}
@@ -1072,15 +1143,17 @@ case 'dashboard':
             reviewCycles={reviewCycles}
             reviews={reviews}
             role={role}
-            canEdit={role === 'admin' || role === 'hr'}
+            roles={roles}
+            canEdit={roles.includes('admin') || roles.includes('hr')}
             onNavigate={setActiveModule}
           />
         )
 case 'performance':
         return (
           <PerformanceModule
-            employees={employees}
-            canEdit={canEditModule(role, 'performance')}
+            employees={visibleEmployees}
+            canEdit={canEditModule(roles, 'performance')}
+            defaultManagerId={isHrOnly && myEmployee ? myEmployee.id : null}
             addEmployee={addEmployee}
             updateEmployee={updateEmployee}
             deleteEmployee={deleteEmployee}
@@ -1091,8 +1164,8 @@ case 'performance':
         return (
 <CompetencyModule
             competencies={competencies}
-            canEdit={canEditModule(role, 'competency')}
-            employees={employees}
+            canEdit={canEditModule(roles, 'competency')}
+            employees={visibleEmployees}
             addCompetency={addCompetency}
             updateCompetency={updateCompetency}
             deleteCompetency={deleteCompetency}
@@ -1101,7 +1174,7 @@ case 'performance':
       case 'aiCompetency':
         return (
           <GapAnalysisModule
-            employees={employees}
+            employees={visibleEmployees}
             trainingPrograms={trainingPrograms}
             recognitionAwards={recognitionAwards}
           />
@@ -1114,8 +1187,9 @@ case 'learning':
             deleteTraining={deleteTraining}
             registerTraining={registerTraining}
             registrations={registrations}
-            canEdit={canEditModule(role, 'learning')}
+            canEdit={canEditModule(roles, 'learning')}
             role={role}
+            roles={roles}
             userName={actor.name}
             trainingBudget={trainingBudget}
             updateTrainingBudget={updateTrainingBudget}
@@ -1125,8 +1199,8 @@ case 'learning':
         return (
           <SuccessionModule
             successionCandidates={successionCandidates}
-            employees={employees}
-            canEdit={canEditModule(role, 'succession')}
+            employees={visibleEmployees}
+            canEdit={canEditModule(roles, 'succession')}
             addSuccession={addSuccession}
             updateSuccession={updateSuccession}
             deleteSuccession={deleteSuccession}
@@ -1141,7 +1215,7 @@ case 'recognition':
             deleteRecognition={deleteRecognition}
             toggleLike={toggleRecognitionLike}
             addComment={addRecognitionComment}
-            canEdit={canEditModule(role, 'recognition')}
+            canEdit={canEditModule(roles, 'recognition')}
             giveShoutout={giveShoutout}
             currentUser={actor.name}
           />
@@ -1151,11 +1225,11 @@ case 'accounts':
           <AccountsModule
             accounts={accounts}
             employees={employees}
-            canEdit={canEditModule(role, 'accounts')}
+            canEdit={canEditModule(roles, 'accounts')}
             addAccount={addAccount}
             updateAccount={updateAccount}
             deleteAccount={deleteAccount}
-            role={role}
+            roles={roles}
             exportBackup={exportBackup}
             importBackup={importBackup}
           />
@@ -1164,7 +1238,7 @@ case 'accounts':
         return (
           <AnnouncementsModule
             announcements={announcements}
-            canEdit={canEditModule(role, 'announcements')}
+            canEdit={canEditModule(roles, 'announcements')}
             addAnnouncement={addAnnouncement}
             updateAnnouncement={updateAnnouncement}
             deleteAnnouncement={deleteAnnouncement}
@@ -1175,13 +1249,14 @@ case 'accounts':
 case 'settings':
         return (
 <SettingsModule
-            employees={employees}
+            employees={visibleEmployees}
             accounts={accounts}
-            canEdit={canEditModule(role, 'settings')}
+            canEdit={canEditModule(roles, 'settings')}
             updateEmployeePhoto={updateEmployeePhoto}
             updateMyPhoto={updateMyPhoto}
             myPhoto={myPhoto}
             role={role}
+            roles={roles}
             userName={actor.name}
             userEmail={actor.email}
           />
@@ -1189,18 +1264,20 @@ case 'settings':
       case 'audit':
         return <AuditModule />
       case 'orgchart':
-        return <OrgChartModule employees={employees} />
+        return <OrgChartModule employees={visibleEmployees} />
       case 'myDevelopment':
         return <MyDevelopmentModule employees={employees} accounts={accounts} userName={actor.name} userEmail={actor.email} />
+      case 'myTeam':
+        return <MyTeamModule team={myTeam} />
       case 'permissions':
-        return <PermissionsModule canEdit={canEditModule(role, 'permissions')} />
+        return <PermissionsModule canEdit={canEditModule(roles, 'permissions')} />
       case 'reviews':
         return (
           <ReviewsModule
             reviewCycles={reviewCycles}
             reviews={reviews}
-            employees={employees}
-            canManage={canEditModule(role, 'reviews')}
+            employees={visibleEmployees}
+            canManage={canEditModule(roles, 'reviews')}
             userName={actor.name}
             addReviewCycle={addReviewCycle}
             updateReviewCycleStatus={updateReviewCycleStatus}
@@ -1212,7 +1289,7 @@ case 'settings':
 default:
         return (
           <Dashboard
-            employees={employees}
+            employees={visibleEmployees}
             trainingPrograms={trainingPrograms}
             recognitionAwards={recognitionAwards}
             successionCandidates={successionCandidates}
@@ -1220,7 +1297,8 @@ default:
             reviewCycles={reviewCycles}
             reviews={reviews}
             role={role}
-            canEdit={role === 'admin' || role === 'hr'}
+            roles={roles}
+            canEdit={roles.includes('admin') || roles.includes('hr')}
             onNavigate={setActiveModule}
           />
         )
@@ -1272,8 +1350,9 @@ default:
           setActiveModule={setActiveModule}
           mobileMenuOpen={mobileMenuOpen}
           setMobileMenuOpen={setMobileMenuOpen}
-userName={roleDisplayName}
+          userName={roleDisplayName}
           role={role}
+          roles={roles}
           myPhoto={myPhoto}
         />
 
@@ -1295,20 +1374,13 @@ userName={roleDisplayName}
 }
 
 // Navbar Component
-function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOpen, userName, role, myPhoto }) {
-  // RBAC: only show modules the role is allowed to see
-  const visibleModules = visibleModulesFor(role)
-
-  // Split into core (featured) modules and supporting modules so the system
-  // is focused on 6 primary modules with the rest as secondary tools.
+function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOpen, userName, role, roles, myPhoto }) {
+  const visibleModules = visibleModulesFor(roles)
   const coreModules = visibleModules.filter((m) => m.featured)
   const adminModules = visibleModules.filter((m) => !m.featured)
-
-  // The section label adapts to the user's role — "Admin & Tools" only makes
-  // sense for admins; HR and staff see a neutral label instead.
   const sectionTitle =
-    role === 'admin' ? 'Admin & Tools' :
-    role === 'hr' ? 'HR Tools' : 'More'
+    roles.includes('admin') ? 'Admin & Tools' :
+    roles.includes('hr') ? 'HR Tools' : 'More'
 
   return (
     <nav className={`sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`} aria-label="Main navigation">
@@ -1354,14 +1426,14 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
           {myPhoto ? <img className="user-avatar-img" src={myPhoto} alt={userName || 'My profile'} /> : <Icon name="user" size={18} />}
         </span>
         <span className="user-name">{userName}</span>
-<span className="role-badge">{roleLabel(role)}</span>
+        <span className="role-badge">{rolesLabel(roles)}</span>
       </div>
     </nav>
   )
 }
 
 // Dashboard Component
-function Dashboard({ employees, trainingPrograms, recognitionAwards, successionCandidates, announcements, reviewCycles, reviews, role, canEdit, onNavigate }) {
+function Dashboard({ employees, trainingPrograms, recognitionAwards, successionCandidates, announcements, reviewCycles, reviews, role, roles, canEdit, onNavigate }) {
   const avgPerformance = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.performance, 0) / employees.length) : 0
   const avgCompetency = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.competency, 0) / employees.length) : 0
   const avgTraining = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.training, 0) / employees.length) : 0
@@ -1413,10 +1485,11 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
       <div className="quick-actions" style={{ marginBottom: 16 }}>
         <button className="quick-action" onClick={() => onNavigate && onNavigate('orgchart')}><Icon name="accounts" size={16} /> Org Chart</button>
         <button className="quick-action" onClick={() => onNavigate && onNavigate('myDevelopment')}><Icon name="ai" size={16} /> My Development Plan</button>
+        <button className="quick-action" onClick={() => onNavigate && onNavigate('myTeam')}><Icon name="accounts" size={16} /> My Team</button>
         {canEdit ? (
           <button className="quick-action" onClick={() => onNavigate && onNavigate('reviews')}><Icon name="performance" size={16} /> Performance Reviews</button>
         ) : null}
-        {role === 'admin' ? (
+        {(roles || []).includes('admin') ? (
           <button className="quick-action" onClick={() => onNavigate && onNavigate('permissions')}><Icon name="shield" size={16} /> Manage Permissions</button>
         ) : null}
       </div>
@@ -1695,7 +1768,7 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
   )
 }
 
-// Org Chart Module - employees grouped by department (view-only, all roles)
+// Org Chart Module - employees grouped by department with reporting lines
 function OrgChartModule({ employees }) {
   const depts = useMemo(() => {
     const map = {}
@@ -1710,10 +1783,16 @@ function OrgChartModule({ employees }) {
     }))
   }, [employees])
 
+  const managerName = (emp) => {
+    if (!emp.managerEmployeeId) return null
+    const mgr = employees.find(e => e.id === emp.managerEmployeeId)
+    return mgr ? mgr.name : null
+  }
+
   return (
     <div className="module">
       <h1 className="page-title">Organization Chart</h1>
-      <p className="page-subtitle">Department structure at a glance</p>
+      <p className="page-subtitle">Department structure with reporting relationships</p>
       <div className="programs-grid">
         {depts.map((d) => (
           <div key={d.name} className="program-card">
@@ -1723,11 +1802,14 @@ function OrgChartModule({ employees }) {
                 <div key={e.id} className="training-item">
                   <div className="training-info">
                     <span className="training-title">{e.name}</span>
-                    <span className="training-meta">{e.role} • {e.performance}% performance</span>
+                    <span className="training-meta">
+                      {e.role}
+                      {managerName(e) ? ` · Reports to: ${managerName(e)}` : ' · (No manager)'}
+                    </span>
                   </div>
+                  <span className="performer-score">{e.performance}%</span>
                 </div>
               ))}
-              {d.employees.length === 0 ? <div className="attention-empty">No employees in this department.</div> : null}
             </div>
           </div>
         ))}
@@ -2059,15 +2141,58 @@ function ReviewsModule({ reviewCycles, reviews, employees, canManage, userName, 
   )
 }
 
+// My Team Module — direct + indirect reports for the logged-in manager
+function MyTeamModule({ team }) {
+  return (
+    <div className="module">
+      <h1 className="page-title">My Team</h1>
+      <p className="page-subtitle">Employees who report to you, directly or indirectly</p>
+      {team.length === 0 ? (
+        <div className="attention-empty">
+          No direct reports found. Make sure your employee record is linked to your account in
+          Accounts &amp; Access, and that team members have your employee record set as their
+          Manager in the Performance module.
+        </div>
+      ) : (
+        <div className="programs-grid">
+          {team.map((e) => (
+            <div key={e.id} className="program-card">
+              <h3 className="program-title">{e.name}</h3>
+              <div className="program-meta">
+                <span>🏥 {e.role}</span>
+                <span>🏢 {e.department}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                <div className="settings-metric">
+                  <span className="settings-metric-value">{e.performance}%</span>
+                  <span className="settings-metric-label">Performance</span>
+                </div>
+                <div className="settings-metric">
+                  <span className="settings-metric-value">{e.competency}%</span>
+                  <span className="settings-metric-label">Competency</span>
+                </div>
+                <div className="settings-metric">
+                  <span className="settings-metric-value">{e.training}%</span>
+                  <span className="settings-metric-label">Training</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Performance Module
-function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, deleteEmployee, bulkDeleteEmployees }) {
+function PerformanceModule({ employees, canEdit, defaultManagerId, addEmployee, updateEmployee, deleteEmployee, bulkDeleteEmployees }) {
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterDepartment, setFilterDepartment] = useState('All')
   const [sortBy, setSortBy] = useState('performance')
-  const [newEmp, setNewEmp] = useState({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80 })
+  const [newEmp, setNewEmp] = useState({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80, managerEmployeeId: defaultManagerId || null })
   const [selectedIds, setSelectedIds] = useState([])
 
   const toggleSelect = (id) => {
@@ -2105,7 +2230,7 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
     if (!canEdit) return
     if (newEmp.name && newEmp.role && newEmp.department) {
       addEmployee(newEmp)
-      setNewEmp({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80 })
+      setNewEmp({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80, managerEmployeeId: defaultManagerId || null })
       setShowAddForm(false)
     }
   }
@@ -2130,7 +2255,7 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
       updateEmployee(selectedEmployee, newEmp)
       setShowEditForm(false)
       setSelectedEmployee(null)
-      setNewEmp({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80 })
+      setNewEmp({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80, managerEmployeeId: defaultManagerId || null })
     }
   }
 
@@ -2339,6 +2464,10 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
               <input type="number" placeholder="Performance" value={newEmp.performance} onChange={e => setNewEmp({...newEmp, performance: parseInt(e.target.value)})} min="0" max="100" />
               <input type="number" placeholder="Competency" value={newEmp.competency} onChange={e => setNewEmp({...newEmp, competency: parseInt(e.target.value)})} min="0" max="100" />
               <input type="number" placeholder="Training" value={newEmp.training} onChange={e => setNewEmp({...newEmp, training: parseInt(e.target.value)})} min="0" max="100" />
+              <select value={newEmp.managerEmployeeId != null ? newEmp.managerEmployeeId : ''} onChange={e => setNewEmp({...newEmp, managerEmployeeId: e.target.value ? Number(e.target.value) : null})}>
+                <option value="">— Manager / Supervisor (optional) —</option>
+                {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
               <button type="submit" className="btn-save">Save Employee</button>
             </form>
           )}
@@ -2369,6 +2498,10 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
               <input type="number" placeholder="Performance" value={newEmp.performance} onChange={e => setNewEmp({...newEmp, performance: parseInt(e.target.value)})} min="0" max="100" />
               <input type="number" placeholder="Competency" value={newEmp.competency} onChange={e => setNewEmp({...newEmp, competency: parseInt(e.target.value)})} min="0" max="100" />
               <input type="number" placeholder="Training" value={newEmp.training} onChange={e => setNewEmp({...newEmp, training: parseInt(e.target.value)})} min="0" max="100" />
+              <select value={newEmp.managerEmployeeId != null ? newEmp.managerEmployeeId : ''} onChange={e => setNewEmp({...newEmp, managerEmployeeId: e.target.value ? Number(e.target.value) : null})}>
+                <option value="">— Manager / Supervisor (optional) —</option>
+                {employees.filter(e => e.id !== selectedEmployee).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
               <div className="form-buttons">
                 <button type="submit" className="btn-save">Update</button>
                 <button type="button" className="btn-cancel" onClick={() => { setShowEditForm(false); setSelectedEmployee(null) }}>Cancel</button>
@@ -2440,6 +2573,7 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
                 <th>Employee</th>
                 <th>Role</th>
                 <th>Department</th>
+                <th>Manager</th>
                 <th>Performance</th>
                 <th>Competency</th>
                 <th>Status</th>
@@ -2447,7 +2581,9 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
               </tr>
             </thead>
             <tbody>
-              {filteredEmployees.map(emp => (
+              {filteredEmployees.map(emp => {
+                const manager = employees.find(e => e.id === emp.managerEmployeeId)
+                return (
                 <tr key={emp.id} onClick={() => setSelectedEmployee(emp.id)} className={`${selectedEmployee === emp.id ? 'selected' : ''} ${selectedIds.includes(emp.id) ? 'row-selected' : ''}`}>
                   {canEdit ? (
                     <td className="checkbox-cell" onClick={(e) => e.stopPropagation()}>
@@ -2461,6 +2597,7 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
                   <td>{emp.name}</td>
                   <td>{emp.role}</td>
                   <td>{emp.department}</td>
+                  <td>{manager ? manager.name : <span className="readonly-cell">—</span>}</td>
                   <td>
                     <div className="score-bar">
                       <div className="score-fill" style={{ width: `${emp.performance}%`, backgroundColor: emp.performance >= 90 ? '#22c55e' : emp.performance >= 80 ? '#3b82f6' : '#f59e0b' }}></div>
@@ -2495,7 +2632,8 @@ function PerformanceModule({ employees, canEdit, addEmployee, updateEmployee, de
                     )}
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -2800,7 +2938,7 @@ function CompetencyModule({ competencies, canEdit, employees, addCompetency, upd
 }
 
 // Learning & Training Module
-function LearningModule({ trainingPrograms, addTraining, deleteTraining, registerTraining, registrations, canEdit, role, userName, trainingBudget, updateTrainingBudget }) {
+function LearningModule({ trainingPrograms, addTraining, deleteTraining, registerTraining, registrations, canEdit, role, roles, userName, trainingBudget, updateTrainingBudget }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newProg, setNewProg] = useState({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '', expiresOn: '' })
   const [msg, setMsg] = useState('')
@@ -2869,7 +3007,7 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
   const registeredIds = new Set(registrations.filter((r) => r.userId === userName || r.userId === role).map((r) => r.programId))
 
   // Only admin / HR can create or delete programs. Staff can only register.
-  const canManage = role === 'admin' || role === 'hr'
+  const canManage = (roles || []).includes('admin') || (roles || []).includes('hr')
 
   // Real upcoming sessions, drawn from the same trainingPrograms data as the
   // grid above (sorted soonest-first) — replaces the old hardcoded rows so
@@ -2990,7 +3128,7 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
                   </div>
                 </div>
               </div>
-              {(role === 'admin' || role === 'hr') ? (
+              {(roles || []).includes('admin') || (roles || []).includes('hr') ? (
                 <div className="data-form" style={{ marginTop: 12 }}>
                   <input type="number" min="0" value={budgetDraft} onChange={(e) => setBudgetDraft(parseInt(e.target.value, 10) || 0)} />
                   <button className="btn-save" onClick={() => { updateTrainingBudget(budgetDraft); setMsg('Training budget updated.') }}>Update Budget</button>
@@ -3032,7 +3170,7 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
                   <button className="btn-register" onClick={() => handleRegister(prog.id)}>Register</button>
                 ) : null}
                 {registeredIds.has(prog.id) ? <span className="registered-badge">✓ Registered</span> : null}
-                {canEdit && (role === 'admin' || role === 'hr') ? (
+                {canEdit && canManage ? (
                   <button className="btn-delete" onClick={() => handleDelete(prog.id)}>Delete</button>
                 ) : null}
               </div>
@@ -3845,16 +3983,27 @@ const _generateReply = (q, ctx) => {
 }
 
 // Accounts Module (admin-only)
-function AccountsModule({ accounts, employees, canEdit, addAccount, updateAccount, deleteAccount, role, exportBackup, importBackup }) {
+function AccountsModule({ accounts, employees, canEdit, addAccount, updateAccount, deleteAccount, roles, exportBackup, importBackup }) {
 const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [editId, setEditId] = useState(null)
   const [formMsg, setFormMsg] = useState('')
   const [formError, setFormError] = useState('')
-  const [newAcc, setNewAcc] = useState({ username: '', password: '', role: 'staff', status: 'active', name: '', email: '', employeeId: null })
+  const [newAcc, setNewAcc] = useState({ username: '', password: '', role: 'staff', roles: ['staff'], status: 'active', name: '', email: '', employeeId: null })
+
+  const ROLE_OPTIONS = ['admin', 'hr', 'staff']
+
+  const toggleNewAccRole = (r) => {
+    setNewAcc((prev) => {
+      const cur = prev.roles || [prev.role || 'staff']
+      const next = cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r]
+      const primary = primaryRoleOf(next)
+      return { ...prev, roles: next, role: primary }
+    })
+  }
 
   const resetForm = () => {
-    setNewAcc({ username: '', password: '', role: 'staff', status: 'active', name: '', email: '', employeeId: null })
+    setNewAcc({ username: '', password: '', role: 'staff', roles: ['staff'], status: 'active', name: '', email: '', employeeId: null })
     setFormMsg('')
     setFormError('')
     setShowAddForm(false)
@@ -3888,7 +4037,7 @@ const [showAddForm, setShowAddForm] = useState(false)
 
   const startEdit = (acc) => {
     setEditId(acc.id)
-    setNewAcc({ username: acc.username, password: acc.password, role: acc.role, status: acc.status, name: acc.name || '', email: acc.email || '', employeeId: acc.employeeId != null ? acc.employeeId : null })
+    setNewAcc({ username: acc.username, password: acc.password, role: acc.role, roles: getAccountRoles(acc), status: acc.status, name: acc.name || '', email: acc.email || '', employeeId: acc.employeeId != null ? acc.employeeId : null })
     setShowEditForm(true)
     setShowAddForm(false)
     setFormMsg('')
@@ -3897,7 +4046,7 @@ const [showAddForm, setShowAddForm] = useState(false)
 
   const handleDelete = (acc) => {
     if (!canEdit) return
-    if (acc.role === 'admin' && accounts.filter((a) => a.role === 'admin').length <= 1) {
+    if (getAccountRoles(acc).includes('admin') && accounts.filter((a) => getAccountRoles(a).includes('admin')).length <= 1) {
       setFormError('Cannot delete the last admin account.')
       return
     }
@@ -3920,7 +4069,7 @@ const accLabel = acc.email || acc.username || acc.id
       {formMsg ? <div className="account-msg success">{formMsg}</div> : null}
       {formError ? <div className="account-msg error">{formError}</div> : null}
 
-      {role === 'admin' ? (
+      {(roles || []).includes('admin') ? (
         <div className="form-section">
           <h2 className="panel-title">Data Backup</h2>
           <p className="module-readonly-note">Exports every module's data as one JSON file. Importing replaces all current data.</p>
@@ -3969,11 +4118,14 @@ const accLabel = acc.email || acc.username || acc.id
             <input type="text" placeholder="Username" value={newAcc.username} onChange={(e) => setNewAcc({ ...newAcc, username: e.target.value })} />
             <input type="text" placeholder="Display name" value={newAcc.name} onChange={(e) => setNewAcc({ ...newAcc, name: e.target.value })} />
             <input type="text" placeholder="Password" value={newAcc.password} onChange={(e) => setNewAcc({ ...newAcc, password: e.target.value })} required />
-            <select value={newAcc.role} onChange={(e) => setNewAcc({ ...newAcc, role: e.target.value })}>
-              <option value="admin">Admin</option>
-              <option value="hr">HR Manager</option>
-              <option value="staff">Staff</option>
-            </select>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: 13 }}>Roles (select all that apply)</p>
+              {ROLE_OPTIONS.map((r) => (
+                <label key={r} style={{ marginRight: 14, fontWeight: 400, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <input type="checkbox" checked={(newAcc.roles || []).includes(r)} onChange={() => toggleNewAccRole(r)} />{roleLabel(r)}
+                </label>
+              ))}
+            </div>
             <select value={newAcc.status} onChange={(e) => setNewAcc({ ...newAcc, status: e.target.value })}>
               <option value="active">Active</option>
               <option value="disabled">Disabled</option>
@@ -3995,11 +4147,14 @@ const accLabel = acc.email || acc.username || acc.id
             <input type="text" placeholder="Username" value={newAcc.username} onChange={(e) => setNewAcc({ ...newAcc, username: e.target.value })} />
             <input type="text" placeholder="Display name" value={newAcc.name} onChange={(e) => setNewAcc({ ...newAcc, name: e.target.value })} />
             <input type="text" placeholder="Password" value={newAcc.password} onChange={(e) => setNewAcc({ ...newAcc, password: e.target.value })} required />
-            <select value={newAcc.role} onChange={(e) => setNewAcc({ ...newAcc, role: e.target.value })}>
-              <option value="admin">Admin</option>
-              <option value="hr">HR Manager</option>
-              <option value="staff">Staff</option>
-            </select>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: 13 }}>Roles (select all that apply)</p>
+              {ROLE_OPTIONS.map((r) => (
+                <label key={r} style={{ marginRight: 14, fontWeight: 400, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <input type="checkbox" checked={(newAcc.roles || []).includes(r)} onChange={() => toggleNewAccRole(r)} />{roleLabel(r)}
+                </label>
+              ))}
+            </div>
             <select value={newAcc.status} onChange={(e) => setNewAcc({ ...newAcc, status: e.target.value })}>
               <option value="active">Active</option>
               <option value="disabled">Disabled</option>
@@ -4038,7 +4193,7 @@ const accLabel = acc.email || acc.username || acc.id
                 <td><strong>{acc.email || '—'}</strong></td>
                 <td>{acc.username || '—'}</td>
                 <td>{acc.name || '—'}</td>
-                <td><span className={`status-badge ${acc.role === 'admin' ? 'excellent' : acc.role === 'hr' ? 'good' : 'needs-improvement'}`}>{roleLabel(acc.role)}</span></td>
+                <td><span className={`status-badge ${getAccountRoles(acc).includes('admin') ? 'excellent' : getAccountRoles(acc).includes('hr') ? 'good' : 'needs-improvement'}`}>{rolesLabel(getAccountRoles(acc))}</span></td>
                 <td><span className={`status-badge ${acc.status === 'active' ? 'excellent' : 'needs-improvement'}`}>{acc.status}</span></td>
                 <td>{linked ? linked.name : <span className="readonly-cell">Not linked</span>}</td>
                 <td>
@@ -4446,7 +4601,7 @@ function SettingsModule({ employees, accounts, canEdit, updateEmployeePhoto, upd
         <div className="settings-profile-info">
           <h2>{userName || 'My Profile'}</h2>
           <div className="settings-profile-meta">
-            <span className="role-badge">{roleLabel(role)}</span>
+            <span className="role-badge">{rolesLabel(roles || [role])}</span>
             {myEmail ? <span className="settings-profile-email">{myEmail}</span> : null}
             {myAccount ? <span className="settings-profile-email">{myAccount.username}</span> : null}
           </div>
@@ -4574,7 +4729,7 @@ const [stage, setStage] = useState('email') // 'email' | 'otp' | 'register'
   // existing admin to add you instead.
   const hasExistingAdmin = useMemo(() => {
     const stored = getStoredData(ACCOUNTS_KEY, [])
-    return Array.isArray(stored) && stored.some((a) => a && a.role === 'admin')
+    return Array.isArray(stored) && stored.some((a) => a && getAccountRoles(a).includes('admin'))
   }, [])
 
 // Real Supabase email OTP is used by default.
@@ -4768,10 +4923,11 @@ const normalized = otp.trim()
         return
       }
       const role = account.role
+      const accountRoles = getAccountRoles(account)
       const name = account.name || roleLabel(role)
 
-      appendAudit({ user: pendingEmail, role, action: 'login', module: 'auth', detail: `Successful login as ${roleLabel(role)}` })
-      onLogin({ role, name, email: pendingEmail })
+      appendAudit({ user: pendingEmail, role, action: 'login', module: 'auth', detail: `Successful login as ${rolesLabel(accountRoles)}` })
+      onLogin({ role, roles: accountRoles, name, email: pendingEmail })
 } catch (err) {
       setError(err?.message || 'Incorrect or expired code. Please try again.')
     } finally {
@@ -4800,7 +4956,7 @@ const normalized = otp.trim()
       appendAudit({ user: em, role: 'admin', action: 'create', module: 'accounts', detail: 'First-run admin account created' })
       setInfo('')
       setError('')
-      onLogin({ role: 'admin', name: created.name || 'Administrator', email: em })
+      onLogin({ role: 'admin', roles: ['admin'], name: created.name || 'Administrator', email: em })
     } catch (err) {
       setError(err.message || 'Failed to create admin account.')
     }
@@ -5064,6 +5220,7 @@ const handleLogin = (s) => {
 
 // Wrap AppContent with a role-aware controller (RBAC).
   const role = session?.role || 'staff'
+  const roles = session?.roles && session.roles.length ? session.roles : [role]
 
   return (
     <div>
@@ -5072,6 +5229,7 @@ const handleLogin = (s) => {
       ) : (
 <AppContent
           role={role}
+          roles={roles}
           userName={session?.name}
           userEmail={session?.email}
           myPhoto={session?.photo}
