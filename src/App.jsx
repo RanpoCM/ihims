@@ -4453,7 +4453,7 @@ function AuditModule() {
 
 // Settings Module — System Settings with a "My Profile" section (own photo)
 // and an employee directory with photos (admin/HR can manage).
-function SettingsModule({ employees, accounts, canEdit, updateEmployeePhoto, updateMyPhoto, myPhoto, role, userName, userEmail }) {
+function SettingsModule({ employees, accounts, canEdit, updateEmployeePhoto, updateMyPhoto, myPhoto, role, roles, userName, userEmail }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterDept, setFilterDept] = useState('All')
   const [msg, setMsg] = useState('')
@@ -4480,7 +4480,7 @@ function SettingsModule({ employees, accounts, canEdit, updateEmployeePhoto, upd
   const saveMyProfile = () => {
     const profile = { bio: myBio.trim(), skills: mySkills.split(',').map((s) => s.trim()).filter(Boolean) }
     setStoredUserProfile(userEmail, profile)
-    appendAudit({ user: userName, role, action: 'update', module: 'settings', detail: 'Updated bio/skills' })
+    appendAudit({ user: userName, role: primaryRoleOf(roles || [role]), action: 'update', module: 'settings', detail: 'Updated bio/skills' })
     setProfileSaved(true)
     setTimeout(() => setProfileSaved(false), 2000)
   }
