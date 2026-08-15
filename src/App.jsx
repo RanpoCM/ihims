@@ -59,19 +59,6 @@ const getStoredData = (key, fallback) => {
   }
 }
 
-// Simple numeric setting reader (e.g. training budget) — getStoredData above
-// is array-only, so plain numbers use their own tiny helper.
-const getStoredNumber = (key, fallback) => {
-  try {
-    const raw = localStorage.getItem(key)
-    if (raw === null) return fallback
-    const n = Number(raw)
-    return Number.isFinite(n) ? n : fallback
-  } catch {
-    return fallback
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Per-user profile photo persistence.
 // The photo is stored under its own localStorage key (keyed by the user's
@@ -699,7 +686,6 @@ const [accounts, setAccounts] = useState(() => getStoredData('ihims_accounts', i
   const [announcements, setAnnouncements] = useState(() => getStoredData('ihims_announcements', initialAnnouncements))
   const [reviewCycles, setReviewCycles] = useState(() => getStoredData('ihims_review_cycles', []))
   const [reviews, setReviews] = useState(() => getStoredData('ihims_reviews', []))
-  const [trainingBudget, setTrainingBudget] = useState(() => getStoredNumber('ihims_training_budget', 50000))
   const [loading] = useState(false)
   const [loadError] = useState('')
 
@@ -757,11 +743,6 @@ useEffect(() => { emitDataChange('ihims_succession', successionCandidates) }, [s
   useEffect(() => { emitDataChange('ihims_announcements', announcements) }, [announcements])
   useEffect(() => { emitDataChange('ihims_review_cycles', reviewCycles) }, [reviewCycles])
   useEffect(() => { emitDataChange('ihims_reviews', reviews) }, [reviews])
-  useEffect(() => {
-    try { localStorage.setItem('ihims_training_budget', String(trainingBudget)) } catch {
-      // ignore storage errors
-    }
-  }, [trainingBudget])
 
 const actor = { name: userName || role, role, email: userEmail }
 
@@ -1037,7 +1018,7 @@ const deleteAccount = (id) => {
       exportedAt: new Date().toISOString(),
       employees, trainingPrograms, competencies, recognitionAwards,
       successionCandidates, accounts, registrations, announcements,
-      reviewCycles, reviews, trainingBudget,
+      reviewCycles, reviews,
     }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -1061,7 +1042,6 @@ const deleteAccount = (id) => {
     if (Array.isArray(payload.announcements)) setAnnouncements(payload.announcements)
     if (Array.isArray(payload.reviewCycles)) setReviewCycles(payload.reviewCycles)
     if (Array.isArray(payload.reviews)) setReviews(payload.reviews)
-    if (typeof payload.trainingBudget === 'number') setTrainingBudget(payload.trainingBudget)
     appendAudit({ user: actor.name, role, action: 'import', module: 'accounts', detail: 'Restored data from backup file' })
   }
 
@@ -1101,13 +1081,6 @@ const deleteAccount = (id) => {
     requireEdit(roles, 'reviews')
     setReviews((prev) => prev.map((r) => (r.id === reviewId ? { ...r, managerRating: rating, managerComments: comments, status: 'reviewed' } : r)))
     appendAudit({ user: actor.name, role, action: 'update', module: 'reviews', detail: 'Completed manager review' })
-  }
-
-  // ---- Training budget (HR/Admin) ------------------------------------------
-  const updateTrainingBudget = (amount) => {
-    requireEdit(roles, 'learning')
-    setTrainingBudget(Number(amount) || 0)
-    appendAudit({ user: actor.name, role, action: 'update', module: 'learning', detail: `Set training budget to $${Number(amount) || 0}` })
   }
 
   // ---- Peer recognition (open to every logged-in user) ---------------------
@@ -1191,8 +1164,6 @@ case 'learning':
             role={role}
             roles={roles}
             userName={actor.name}
-            trainingBudget={trainingBudget}
-            updateTrainingBudget={updateTrainingBudget}
           />
         )
       case 'succession':
@@ -2938,12 +2909,11 @@ function CompetencyModule({ competencies, canEdit, employees, addCompetency, upd
 }
 
 // Learning & Training Module
-function LearningModule({ trainingPrograms, addTraining, deleteTraining, registerTraining, registrations, canEdit, role, roles, userName, trainingBudget, updateTrainingBudget }) {
+function LearningModule({ trainingPrograms, addTraining, deleteTraining, registerTraining, registrations, canEdit, role, roles, userName }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newProg, setNewProg] = useState({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '', expiresOn: '' })
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
-  const [budgetDraft, setBudgetDraft] = useState(trainingBudget)
 
   const handleAddTraining = (e) => {
     e.preventDefault()
@@ -3097,47 +3067,6 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
         </div>
       </div>
 
-      <div className="training-needs-panel">
-        <h2 className="panel-title"><span className="panel-title-icon"><Icon name="learning" size={18} /></span> Training Budget</h2>
-        {(() => {
-          const totalSpend = trainingPrograms.reduce((s, p) => s + (Number(p.cost) || 0), 0)
-          const pctUsed = trainingBudget > 0 ? Math.min(100, Math.round((totalSpend / trainingBudget) * 100)) : 0
-          const remaining = trainingBudget - totalSpend
-          return (
-            <>
-              <div className="perf-stat-bar" style={{ marginTop: 8, marginBottom: 10 }}>
-                <div className="perf-stat-fill" style={{ width: `${pctUsed}%`, backgroundColor: pctUsed >= 90 ? '#ef4444' : pctUsed >= 70 ? '#f59e0b' : '#22c55e' }}></div>
-              </div>
-              <div className="learning-stats" style={{ marginBottom: 0 }}>
-                <div className="learning-stat">
-                  <div className="learning-stat-content">
-                    <span className="learning-stat-value">${trainingBudget.toLocaleString()}</span>
-                    <span className="learning-stat-label">Total Budget</span>
-                  </div>
-                </div>
-                <div className="learning-stat">
-                  <div className="learning-stat-content">
-                    <span className="learning-stat-value">${totalSpend.toLocaleString()}</span>
-                    <span className="learning-stat-label">Spent ({pctUsed}%)</span>
-                  </div>
-                </div>
-                <div className="learning-stat">
-                  <div className="learning-stat-content">
-                    <span className="learning-stat-value" style={{ color: remaining < 0 ? '#dc2626' : undefined }}>${remaining.toLocaleString()}</span>
-                    <span className="learning-stat-label">Remaining</span>
-                  </div>
-                </div>
-              </div>
-              {(roles || []).includes('admin') || (roles || []).includes('hr') ? (
-                <div className="data-form" style={{ marginTop: 12 }}>
-                  <input type="number" min="0" value={budgetDraft} onChange={(e) => setBudgetDraft(parseInt(e.target.value, 10) || 0)} />
-                  <button className="btn-save" onClick={() => { updateTrainingBudget(budgetDraft); setMsg('Training budget updated.') }}>Update Budget</button>
-                </div>
-              ) : null}
-            </>
-          )
-        })()}
-      </div>
 
 {msg ? <div className="account-msg success">{msg}</div> : null}
       {err ? <div className="account-msg error">{err}</div> : null}
