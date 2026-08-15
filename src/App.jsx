@@ -4639,6 +4639,9 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [showTerms, setShowTerms] = useState(false)
+  const [termsTab, setTermsTab] = useState('toa') // 'toa' | 'eula'
 
 const [stage, setStage] = useState('email') // 'email' | 'otp' | 'register'
   const [pendingEmail, setPendingEmail] = useState(null)
@@ -5041,7 +5044,26 @@ const featureCards = [
                 {error ? <div className="login-error">{error}</div> : null}
                 {info ? <div className="login-info">{info}</div> : null}
 
-                <button type="submit" className="btn-save login-submit" disabled={busy}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text-secondary, #6b7280)', marginTop: 4 }}>
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    style={{ marginTop: 2, flexShrink: 0 }}
+                  />
+                  <span>
+                    I have read and agree to the{' '}
+                    <button type="button" className="login-link-btn" onClick={() => { setTermsTab('toa'); setShowTerms(true) }}>
+                      Terms of Access
+                    </button>
+                    {' '}and{' '}
+                    <button type="button" className="login-link-btn" onClick={() => { setTermsTab('eula'); setShowTerms(true) }}>
+                      End-User License Agreement
+                    </button>
+                  </span>
+                </label>
+
+                <button type="submit" className="btn-save login-submit" disabled={busy || !acceptedTerms}>
                   {busy ? 'Sending code…' : 'Send Verification Code →'}
                 </button>
               </form>
@@ -5117,7 +5139,154 @@ value={otp}
           <strong>IHIMS</strong> — AI-Driven Human Resource Management System. Built for modern, data-driven healthcare teams.
         </p>
         <p className="landing-footer-meta">© {new Date().getFullYear()} IHIMS • Competency Gap Analysis Platform</p>
+        <p style={{ marginTop: 8, fontSize: 12 }}>
+          <button type="button" className="login-link-btn" onClick={() => { setTermsTab('toa'); setShowTerms(true) }}>Terms of Access</button>
+          {' · '}
+          <button type="button" className="login-link-btn" onClick={() => { setTermsTab('eula'); setShowTerms(true) }}>End-User License Agreement</button>
+        </p>
       </footer>
+
+      {showTerms && (
+        <div className="modal-overlay" onClick={() => setShowTerms(false)}>
+          <div className="modal" style={{ maxWidth: 700, width: '94vw', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Legal Agreements</h3>
+              <button className="modal-close" onClick={() => setShowTerms(false)} aria-label="Close">&times;</button>
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border, #e5e7eb)', padding: '0 24px' }}>
+              {[{ id: 'toa', label: 'Terms of Access' }, { id: 'eula', label: 'End-User License Agreement' }].map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTermsTab(t.id)}
+                  style={{
+                    padding: '10px 18px',
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    fontWeight: termsTab === t.id ? 700 : 400,
+                    borderBottom: termsTab === t.id ? '2px solid var(--primary, #3b82f6)' : '2px solid transparent',
+                    color: termsTab === t.id ? 'var(--primary, #3b82f6)' : 'inherit',
+                    fontSize: 14,
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="modal-body" style={{ overflowY: 'auto', flex: 1, fontSize: 13, lineHeight: 1.7 }}>
+              {termsTab === 'toa' ? (
+                <div>
+                  <h2 style={{ fontSize: 16, marginBottom: 4 }}>Terms of Access</h2>
+                  <p style={{ color: '#6b7280', marginBottom: 16 }}>Effective Date: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} · IHIMS — Integrated Hospital Information Management System</p>
+
+                  <h4>1. System Overview</h4>
+                  <p>The Integrated Hospital Information Management System (IHIMS) is a web-based platform developed for use by authorised personnel of small to medium-sized healthcare institutions in the Philippines. The system supports workforce management, employee performance monitoring, competency gap analysis, learning and training management, succession planning, and social recognition. It is developed as an academic capstone project by students of Bestlink College of the Philippines.</p>
+
+                  <h4>2. Authorised Users</h4>
+                  <p>Access to IHIMS is strictly limited to individuals whose accounts have been created and authorised by a system administrator of the subscribing healthcare institution. Roles include Hospital Administrator, Human Resource Personnel, Training Officer, and Department Head/Staff. Unauthorised access, sharing of credentials, or use of another person's account is strictly prohibited.</p>
+
+                  <h4>3. Acceptable Use</h4>
+                  <p>Authorised users agree to use IHIMS solely for legitimate workforce management and human resource development purposes within their healthcare institution. You must not:</p>
+                  <ul>
+                    <li>Use the system to access, modify, or delete records of employees outside your authorised scope.</li>
+                    <li>Attempt to circumvent role-based access controls or exploit system vulnerabilities.</li>
+                    <li>Use the system for any purpose that violates Philippine law, including the Data Privacy Act of 2012 (Republic Act No. 10173).</li>
+                    <li>Share, copy, export, or distribute employee data outside the institution without proper authorisation.</li>
+                    <li>Use AI-generated competency gap analysis results as the sole basis for employment decisions such as hiring, promotion, or termination.</li>
+                  </ul>
+
+                  <h4>4. Data Privacy and Confidentiality</h4>
+                  <p>Employee records stored in IHIMS, including performance evaluations, competency assessments, training history, and development plans, constitute personal data under the Data Privacy Act of 2012. All authorised users are responsible for handling this data in accordance with applicable Philippine privacy regulations. Data must not be disclosed to unauthorised parties. The system stores data locally within the institution's environment and does not transmit personally identifiable information to external servers without explicit institutional consent.</p>
+
+                  <h4>5. AI Decision-Support Limitation</h4>
+                  <p>The AI-Assisted Competency Gap Analysis feature is a decision-support tool only. It is designed to provide insights and recommendations to assist human resource personnel and hospital administrators in their professional judgement. IHIMS does not independently determine, nor does it recommend that any user independently determine, employment decisions such as promotion, demotion, termination, or disciplinary action based solely on system-generated outputs. All employment decisions must involve qualified HR professionals and comply with applicable labour laws of the Philippines.</p>
+
+                  <h4>6. System Availability</h4>
+                  <p>IHIMS is provided as-is, as an academic capstone project. The development team does not guarantee uninterrupted availability or error-free operation. Institutions deploying the system are responsible for maintaining their own data backups and ensuring appropriate IT infrastructure. The development team shall not be liable for any data loss, system downtime, or operational disruption arising from use of the system.</p>
+
+                  <h4>7. Account Security</h4>
+                  <p>Each user is responsible for maintaining the confidentiality of their login credentials. Users must immediately notify their system administrator if they suspect unauthorised access to their account. The system uses one-time password (OTP) verification to authenticate user sessions. Sharing OTP codes with other individuals is prohibited.</p>
+
+                  <h4>8. Modifications to Terms</h4>
+                  <p>The institution's system administrator or the development team may update these Terms of Access as necessary. Continued use of IHIMS following notification of changes constitutes acceptance of the revised terms.</p>
+
+                  <h4>9. Governing Law</h4>
+                  <p>These Terms of Access are governed by the laws of the Republic of the Philippines, including but not limited to the Data Privacy Act of 2012 (RA 10173), the Labor Code of the Philippines, and applicable regulations of the Department of Health (DOH) and the Professional Regulation Commission (PRC).</p>
+                </div>
+              ) : (
+                <div>
+                  <h2 style={{ fontSize: 16, marginBottom: 4 }}>End-User License Agreement (EULA)</h2>
+                  <p style={{ color: '#6b7280', marginBottom: 16 }}>Effective Date: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} · IHIMS — Integrated Hospital Information Management System</p>
+
+                  <h4>1. Grant of License</h4>
+                  <p>The development team of the Integrated Hospital Information Management System (IHIMS), students of Bestlink College of the Philippines, grants to the subscribing healthcare institution a limited, non-exclusive, non-transferable, revocable license to install, access, and use IHIMS solely for the institution's internal human resource management and workforce development purposes. This license does not convey ownership of the software or any intellectual property rights therein.</p>
+
+                  <h4>2. Intellectual Property</h4>
+                  <p>IHIMS, including its source code, design, algorithms, AI-Assisted Competency Gap Analysis engine, user interface, documentation, and all related components, is the intellectual property of its development team and Bestlink College of the Philippines. All rights not expressly granted under this Agreement are reserved. You may not copy, modify, distribute, sell, sublicense, reverse-engineer, or create derivative works of IHIMS or any of its components without prior written consent from the development team.</p>
+
+                  <h4>3. Scope of Use</h4>
+                  <p>The license granted herein is limited to use within the subscribing institution by authorised personnel only. The system may not be:</p>
+                  <ul>
+                    <li>Installed or deployed for use by any third party or external organisation without a separate written agreement.</li>
+                    <li>Used for commercial resale, redistribution, or provision of services to other institutions.</li>
+                    <li>Modified, adapted, or extended without express written permission from the development team.</li>
+                    <li>Used in a manner inconsistent with its intended purpose as a hospital HR management and competency gap analysis platform.</li>
+                  </ul>
+
+                  <h4>4. Data Ownership</h4>
+                  <p>All employee data, performance records, competency assessments, training histories, and related information entered into IHIMS remain the sole property of the subscribing healthcare institution. The development team claims no ownership over institutional data stored within the system. The institution is solely responsible for the accuracy, legality, and security of data entered into IHIMS.</p>
+
+                  <h4>5. AI Feature Disclaimer</h4>
+                  <p>The AI-Assisted Competency Gap Analysis feature uses computational models to analyse workforce data and generate development recommendations. These outputs are for informational and decision-support purposes only. The development team makes no warranty, express or implied, regarding the accuracy, completeness, or fitness for a particular purpose of AI-generated insights. The institution and its authorised HR professionals bear full responsibility for all employment and workforce development decisions.</p>
+
+                  <h4>6. No Warranty</h4>
+                  <p>IHIMS is provided "as is" and "as available," without warranty of any kind, express or implied. The development team does not warrant that the system will be uninterrupted, error-free, secure, or free of viruses or other harmful components. The institution assumes all risks associated with the use of IHIMS and is responsible for implementing appropriate data backup, security, and contingency measures.</p>
+
+                  <h4>7. Limitation of Liability</h4>
+                  <p>To the fullest extent permitted by applicable Philippine law, the development team and Bestlink College of the Philippines shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, loss of business, or reputational harm, arising from the use or inability to use IHIMS, even if advised of the possibility of such damages.</p>
+
+                  <h4>8. Termination</h4>
+                  <p>This license is effective until terminated. The development team may terminate this license immediately upon written notice if the institution breaches any provision of this Agreement. Upon termination, the institution must cease all use of IHIMS and destroy all copies of the software in its possession. Provisions relating to intellectual property, data ownership, liability, and governing law shall survive termination.</p>
+
+                  <h4>9. Updates and Modifications</h4>
+                  <p>The development team reserves the right to update, modify, or discontinue IHIMS at any time without prior notice. Any updates provided to the institution shall be subject to the terms of this Agreement unless accompanied by a separate license agreement.</p>
+
+                  <h4>10. Entire Agreement</h4>
+                  <p>This End-User License Agreement, together with the Terms of Access, constitutes the entire agreement between the institution and the development team with respect to IHIMS and supersedes all prior discussions, representations, and agreements. This Agreement is governed by the laws of the Republic of the Philippines.</p>
+
+                  <h4>11. Contact</h4>
+                  <p>For questions regarding this Agreement, please contact the IHIMS development team through Bestlink College of the Philippines.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                />
+                I have read and accept these terms
+              </label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn-cancel" onClick={() => setShowTerms(false)}>Close</button>
+                <button
+                  className="btn-save"
+                  onClick={() => setShowTerms(false)}
+                  disabled={!acceptedTerms}
+                >
+                  Accept & Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
