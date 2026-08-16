@@ -217,21 +217,21 @@ const createBootstrapAccount = (acc) => {
 // Seed data so the system is functional on first run
 // ---------------------------------------------------------------------------
 const initialEmployees = [
-  { id: 1, name: 'Dr. Sarah Johnson', role: 'Chief Medical Officer', department: 'Cardiology', performance: 95, competency: 92, training: 98, managerEmployeeId: null },
-  { id: 2, name: 'Dr. Michael Chen', role: 'Cardiologist', department: 'Cardiology', performance: 91, competency: 88, training: 90, managerEmployeeId: 1 },
-  { id: 3, name: 'James Wilson', role: 'Senior Nurse', department: 'Nursing', performance: 88, competency: 85, training: 92, managerEmployeeId: 1 },
-  { id: 4, name: 'Dr. Lisa Anderson', role: 'Pediatrician', department: 'Pediatrics', performance: 93, competency: 90, training: 95, managerEmployeeId: 1 },
-  { id: 5, name: 'Emily Brown', role: 'Lab Technician', department: 'Laboratory', performance: 84, competency: 82, training: 86, managerEmployeeId: null },
-  { id: 6, name: 'Maria Garcia', role: 'Registered Nurse', department: 'Nursing', performance: 86, competency: 84, training: 88, managerEmployeeId: 3 },
-  { id: 7, name: 'Robert Taylor', role: 'Administrator', department: 'Administration', performance: 82, competency: 80, training: 84, managerEmployeeId: 8 },
-  { id: 8, name: 'David Martinez', role: 'HR Manager', department: 'Administration', performance: 80, competency: 78, training: 82, managerEmployeeId: null },
+  { id: 1, name: 'Dr. Sarah Johnson', role: 'Chief Medical Officer', department: 'Cardiology', performance: 95, competency: 92, training: 98, managerEmployeeId: null, qualifications: 'MD, Board Certified Cardiologist, PRC Lic. No. 0012345', employmentStatus: 'Regular', dateHired: '2018-03-01', competencyNotes: '' },
+  { id: 2, name: 'Dr. Michael Chen', role: 'Cardiologist', department: 'Cardiology', performance: 91, competency: 88, training: 90, managerEmployeeId: 1, qualifications: 'MD, Fellow Philippine College of Cardiology', employmentStatus: 'Regular', dateHired: '2019-06-15', competencyNotes: '' },
+  { id: 3, name: 'James Wilson', role: 'Senior Nurse', department: 'Nursing', performance: 88, competency: 85, training: 92, managerEmployeeId: 1, qualifications: 'BSN, RN, PRC Lic. No. 0045678', employmentStatus: 'Regular', dateHired: '2020-01-10', competencyNotes: '' },
+  { id: 4, name: 'Dr. Lisa Anderson', role: 'Pediatrician', department: 'Pediatrics', performance: 93, competency: 90, training: 95, managerEmployeeId: 1, qualifications: 'MD, Diplomate Philippine Pediatric Society', employmentStatus: 'Regular', dateHired: '2019-09-01', competencyNotes: '' },
+  { id: 5, name: 'Emily Brown', role: 'Lab Technician', department: 'Laboratory', performance: 84, competency: 82, training: 86, managerEmployeeId: null, qualifications: 'BS Medical Technology, RMT, PRC Lic. No. 0078901', employmentStatus: 'Regular', dateHired: '2021-02-20', competencyNotes: '' },
+  { id: 6, name: 'Maria Garcia', role: 'Registered Nurse', department: 'Nursing', performance: 86, competency: 84, training: 88, managerEmployeeId: 3, qualifications: 'BSN, RN, PRC Lic. No. 0056789', employmentStatus: 'Probationary', dateHired: '2025-01-05', competencyNotes: '' },
+  { id: 7, name: 'Robert Taylor', role: 'Administrator', department: 'Administration', performance: 82, competency: 80, training: 84, managerEmployeeId: 8, qualifications: 'BS Business Administration, MBA', employmentStatus: 'Regular', dateHired: '2020-07-01', competencyNotes: '' },
+  { id: 8, name: 'David Martinez', role: 'HR Manager', department: 'Administration', performance: 80, competency: 78, training: 82, managerEmployeeId: null, qualifications: 'BS Psychology, SHRM-CP', employmentStatus: 'Regular', dateHired: '2018-11-15', competencyNotes: '' },
 ]
 
 const initialTrainingPrograms = [
-  { id: 1, title: 'Emergency Response Training', type: 'Workshop', duration: '8 hours', participants: 20, status: 'ongoing', instructor: 'Dr. Alan Reed', cost: 0, seats: 20, date: '2026-07-05', time: '9:00 AM - 4:00 PM', location: 'Training Room A' },
-  { id: 2, title: 'Advanced Cardiac Life Support', type: 'Certification', duration: '2 days', participants: 15, status: 'upcoming', instructor: 'Dr. Maya Patel', cost: 250, seats: 15, date: '2026-07-08', time: '8:00 AM - 5:00 PM', location: 'Conference Hall' },
-  { id: 3, title: 'Patient Safety Protocols', type: 'Course', duration: '3 hours', participants: 30, status: 'completed', instructor: 'Nurse Kim Lee', cost: 0, seats: 30, date: '2026-06-20', time: '2:00 PM - 5:00 PM', location: 'Training Room B' },
-  { id: 4, title: 'Leadership Development', type: 'Seminar', duration: '1 day', participants: 12, status: 'upcoming', instructor: 'Dr. Sarah Johnson', cost: 150, seats: 12, date: '2026-07-12', time: '9:00 AM - 5:00 PM', location: 'Boardroom' },
+  { id: 1, title: 'Emergency Response Training', type: 'Workshop', duration: '8 hours', participants: 20, status: 'ongoing', instructor: 'Dr. Alan Reed', cost: 0, seats: 20, date: '2026-07-05', time: '9:00 AM - 4:00 PM', location: 'Training Room A', competencyIds: [1, 4] },
+  { id: 2, title: 'Advanced Cardiac Life Support', type: 'Certification', duration: '2 days', participants: 15, status: 'upcoming', instructor: 'Dr. Maya Patel', cost: 250, seats: 15, date: '2026-07-08', time: '8:00 AM - 5:00 PM', location: 'Conference Hall', competencyIds: [1] },
+  { id: 3, title: 'Patient Safety Protocols', type: 'Course', duration: '3 hours', participants: 30, status: 'completed', instructor: 'Nurse Kim Lee', cost: 0, seats: 30, date: '2026-06-20', time: '2:00 PM - 5:00 PM', location: 'Training Room B', competencyIds: [4] },
+  { id: 4, title: 'Leadership Development', type: 'Seminar', duration: '1 day', participants: 12, status: 'upcoming', instructor: 'Dr. Sarah Johnson', cost: 150, seats: 12, date: '2026-07-12', time: '9:00 AM - 5:00 PM', location: 'Boardroom', competencyIds: [3] },
 ]
 
 const initialCompetencies = [
@@ -274,6 +274,9 @@ const initialAnnouncements = [
   { id: 2, title: 'Mandatory safety drill this Friday', body: 'All staff must attend the emergency response drill at 9:00 AM in Training Room A.', category: 'Safety', author: 'HR Manager', date: '2026-06-20', pinned: false },
   { id: 3, title: 'New certification window opens', body: 'Enrollment for Advanced Cardiac Life Support is now open in the Learning module.', category: 'Training', author: 'HR Manager', date: '2026-06-25', pinned: false },
 ]
+
+// Attendance record: { id, employeeId, date, status: 'Present'|'Absent'|'Late'|'Leave', notes }
+const initialAttendance = []
 
 // ---------------------------------------------------------------------------
 // Permissions matrix (admin-editable). This stores the *desired* view/edit
@@ -686,6 +689,7 @@ const [accounts, setAccounts] = useState(() => getStoredData('ihims_accounts', i
   const [announcements, setAnnouncements] = useState(() => getStoredData('ihims_announcements', initialAnnouncements))
   const [reviewCycles, setReviewCycles] = useState(() => getStoredData('ihims_review_cycles', []))
   const [reviews, setReviews] = useState(() => getStoredData('ihims_reviews', []))
+  const [attendance, setAttendance] = useState(() => getStoredData('ihims_attendance', initialAttendance))
   const [loading] = useState(false)
   const [loadError] = useState('')
 
@@ -707,6 +711,7 @@ if (e.key === 'ihims_accounts') setAccounts(parsed)
         if (e.key === 'ihims_announcements') setAnnouncements(parsed)
         if (e.key === 'ihims_review_cycles') setReviewCycles(parsed)
         if (e.key === 'ihims_reviews') setReviews(parsed)
+        if (e.key === 'ihims_attendance') setAttendance(parsed)
       } catch {
         // ignore invalid JSON
       }
@@ -723,6 +728,7 @@ if (e.key === 'ihims_accounts') setAccounts(parsed)
       if (key === 'ihims_announcements') setAnnouncements(value)
       if (key === 'ihims_review_cycles') setReviewCycles(value)
       if (key === 'ihims_reviews') setReviews(value)
+      if (key === 'ihims_attendance') setAttendance(value)
     }
     window.addEventListener('storage', onStorage)
     window.addEventListener('ihims-data-change', onCustom)
@@ -743,6 +749,7 @@ useEffect(() => { emitDataChange('ihims_succession', successionCandidates) }, [s
   useEffect(() => { emitDataChange('ihims_announcements', announcements) }, [announcements])
   useEffect(() => { emitDataChange('ihims_review_cycles', reviewCycles) }, [reviewCycles])
   useEffect(() => { emitDataChange('ihims_reviews', reviews) }, [reviews])
+  useEffect(() => { emitDataChange('ihims_attendance', attendance) }, [attendance])
 
 const actor = { name: userName || role, role, email: userEmail }
 
@@ -1090,6 +1097,65 @@ const deleteAccount = (id) => {
     appendAudit({ user: actor.name, role, action: 'create', module: 'recognition', detail: `Gave a peer shout-out to "${newRow.recipient}"` })
   }
 
+  // ---- Attendance management -----------------------------------------------
+  const addAttendanceRecord = (record) => {
+    requireEdit(roles, 'performance')
+    const newRow = { ...record, id: nextId(attendance) }
+    setAttendance((prev) => [...prev, newRow])
+    appendAudit({ user: actor.name, role, action: 'create', module: 'attendance', detail: `Logged ${record.status} for employee ID ${record.employeeId} on ${record.date}` })
+  }
+
+  const updateAttendanceRecord = (id, data) => {
+    requireEdit(roles, 'performance')
+    setAttendance((prev) => prev.map((r) => (r.id === id ? { ...r, ...data } : r)))
+    appendAudit({ user: actor.name, role, action: 'update', module: 'attendance', detail: `Updated attendance record ${id}` })
+  }
+
+  const deleteAttendanceRecord = (id) => {
+    requireEdit(roles, 'performance')
+    setAttendance((prev) => prev.filter((r) => r.id !== id))
+    appendAudit({ user: actor.name, role, action: 'delete', module: 'attendance', detail: `Deleted attendance record ${id}` })
+  }
+
+  // ---- Competency qualitative notes ----------------------------------------
+  const updateCompetencyNotes = (employeeId, notes) => {
+    requireEdit(roles, 'competency')
+    const target = employees.find((e) => e.id === employeeId)
+    setEmployees((prev) => prev.map((e) => (e.id === employeeId ? { ...e, competencyNotes: notes } : e)))
+    appendAudit({ user: actor.name, role, action: 'update', module: 'competency', detail: `Updated competency notes for "${target?.name || employeeId}"` })
+  }
+
+  // ---- Employee profile fields (qualifications, employment info) -----------
+  const updateEmployeeProfile = (id, profileData) => {
+    requireEdit(roles, 'performance')
+    const target = employees.find((e) => e.id === id)
+    setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, ...profileData } : e)))
+    appendAudit({ user: actor.name, role, action: 'update', module: 'performance', detail: `Updated profile for "${target?.name || id}"` })
+  }
+
+  // ---- Training completion feedback loop -----------------------------------
+  // When HR marks a training as completed for an employee, offer to bump
+  // the employee's training score and suggest a competency score nudge for
+  // each competency linked to that program.
+  const markTrainingCompletedForEmployee = (employeeId, programId, competencyScoreNudge) => {
+    requireEdit(roles, 'learning')
+    const program = trainingPrograms.find((p) => p.id === programId)
+    const emp = employees.find((e) => e.id === employeeId)
+    if (!emp || !program) return
+
+    // Bump training score by up to 3 points (capped at 100)
+    const newTraining = Math.min(100, (emp.training || 0) + 3)
+    // If caller provided a competency nudge value, apply it (capped at 100)
+    const newCompetency = competencyScoreNudge != null
+      ? Math.min(100, Math.max(0, competencyScoreNudge))
+      : emp.competency
+
+    setEmployees((prev) => prev.map((e) =>
+      e.id === employeeId ? { ...e, training: newTraining, competency: newCompetency } : e
+    ))
+    appendAudit({ user: actor.name, role, action: 'update', module: 'learning', detail: `Marked "${emp.name}" as completed for "${program.title}" — training score updated to ${newTraining}%` })
+  }
+
 const renderModule = () => {
     // RBAC: verify view permission (throws 403 if denied), show a 403 page.
     try {
@@ -1125,23 +1191,30 @@ case 'performance':
         return (
           <PerformanceModule
             employees={visibleEmployees}
+            attendance={attendance}
+            competencies={competencies}
             canEdit={canEditModule(roles, 'performance')}
             defaultManagerId={isHrOnly && myEmployee ? myEmployee.id : null}
             addEmployee={addEmployee}
             updateEmployee={updateEmployee}
             deleteEmployee={deleteEmployee}
             bulkDeleteEmployees={bulkDeleteEmployees}
+            updateEmployeeProfile={updateEmployeeProfile}
+            addAttendanceRecord={addAttendanceRecord}
+            updateAttendanceRecord={updateAttendanceRecord}
+            deleteAttendanceRecord={deleteAttendanceRecord}
           />
         )
       case 'competency':
         return (
-<CompetencyModule
+          <CompetencyModule
             competencies={competencies}
             canEdit={canEditModule(roles, 'competency')}
             employees={visibleEmployees}
             addCompetency={addCompetency}
             updateCompetency={updateCompetency}
             deleteCompetency={deleteCompetency}
+            updateCompetencyNotes={updateCompetencyNotes}
           />
         )
       case 'aiCompetency':
@@ -1156,10 +1229,13 @@ case 'learning':
         return (
           <LearningModule
             trainingPrograms={trainingPrograms}
+            competencies={competencies}
+            employees={visibleEmployees}
+            registrations={registrations}
             addTraining={addTraining}
             deleteTraining={deleteTraining}
             registerTraining={registerTraining}
-            registrations={registrations}
+            markTrainingCompletedForEmployee={markTrainingCompletedForEmployee}
             canEdit={canEditModule(roles, 'learning')}
             role={role}
             roles={roles}
@@ -1452,6 +1528,28 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
 <div className="dashboard">
       <h1 className="page-title">AI-Driven Human Resource Management System</h1>
       <p className="page-subtitle">Competency Gap Analysis for Performance and Development</p>
+
+      {/* What needs attention today — simple plain-language summary card */}
+      {(() => {
+        const items = []
+        const lowPerf = employees.filter(e => e.performance < 80)
+        if (lowPerf.length) items.push(`⚠️ ${lowPerf.length} employee${lowPerf.length > 1 ? 's' : ''} ${lowPerf.length > 1 ? 'have' : 'has'} performance below 80% — e.g. ${lowPerf[0].name}.`)
+        const gaps = employees.filter(e => e.competency < e.performance)
+        if (gaps.length) items.push(`🔍 ${gaps.length} employee${gaps.length > 1 ? 's' : ''} ${gaps.length > 1 ? 'have' : 'has'} a competency gap vs their performance score.`)
+        const upcomingTraining = trainingPrograms.filter(p => p.status === 'upcoming')
+        if (upcomingTraining.length) items.push(`📅 ${upcomingTraining.length} training session${upcomingTraining.length > 1 ? 's' : ''} upcoming — encourage staff to register early.`)
+        const lowTraining = employees.filter(e => e.training < 85)
+        if (lowTraining.length) items.push(`🎓 ${lowTraining.length} employee${lowTraining.length > 1 ? 's' : ''} ${lowTraining.length > 1 ? 'have' : 'has'} training completion below 85%.`)
+        if (items.length === 0) return <div className="account-msg success" style={{ marginBottom: 16 }}>✅ Everything looks good today — no immediate issues found.</div>
+        return (
+          <div style={{ background: 'var(--warning-bg, #fffbeb)', border: '1px solid var(--warning, #f59e0b)', borderRadius: 10, padding: '14px 18px', marginBottom: 18 }}>
+            <strong style={{ fontSize: 14 }}>What needs attention today</strong>
+            <ul style={{ margin: '8px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {items.map((item, i) => <li key={i} style={{ fontSize: 13, color: '#92400e' }}>{item}</li>)}
+            </ul>
+          </div>
+        )
+      })()}
 
       <div className="quick-actions" style={{ marginBottom: 16 }}>
         <button className="quick-action" onClick={() => onNavigate && onNavigate('orgchart')}><Icon name="accounts" size={16} /> Org Chart</button>
@@ -2112,8 +2210,12 @@ function ReviewsModule({ reviewCycles, reviews, employees, canManage, userName, 
   )
 }
 
-// My Team Module — direct + indirect reports for the logged-in manager
+// My Team Module — direct + indirect reports with gap recommendations
 function MyTeamModule({ team }) {
+  const [openEmpId, setOpenEmpId] = useState(null)
+  const openEmp = team.find(e => e.id === openEmpId) || null
+  const openAnalysis = openEmp ? analyzeEmployee(openEmp) : null
+
   return (
     <div className="module">
       <h1 className="page-title">My Team</h1>
@@ -2126,29 +2228,102 @@ function MyTeamModule({ team }) {
         </div>
       ) : (
         <div className="programs-grid">
-          {team.map((e) => (
-            <div key={e.id} className="program-card">
-              <h3 className="program-title">{e.name}</h3>
-              <div className="program-meta">
-                <span>🏥 {e.role}</span>
-                <span>🏢 {e.department}</span>
+          {team.map((e) => {
+            const analysis = analyzeEmployee(e)
+            const topGap = analysis.gaps.filter(g => g.gap > 0).sort((a, b) => b.gap - a.gap)[0] || null
+            return (
+              <div key={e.id} className="program-card">
+                <h3 className="program-title">{e.name}</h3>
+                <div className="program-meta">
+                  <span>🏥 {e.role}</span>
+                  <span>🏢 {e.department}</span>
+                  {e.employmentStatus ? <span>📋 {e.employmentStatus}</span> : null}
+                </div>
+                <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                  <div className="settings-metric">
+                    <span className="settings-metric-value">{e.performance}%</span>
+                    <span className="settings-metric-label">Performance</span>
+                  </div>
+                  <div className="settings-metric">
+                    <span className="settings-metric-value">{e.competency}%</span>
+                    <span className="settings-metric-label">Competency</span>
+                  </div>
+                  <div className="settings-metric">
+                    <span className="settings-metric-value">{e.training}%</span>
+                    <span className="settings-metric-label">Training</span>
+                  </div>
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <span className={`status-badge ${analysis.promotionReadiness >= 80 ? 'excellent' : analysis.promotionReadiness >= 60 ? 'good' : 'needs-improvement'}`}>
+                    Promotion Readiness: {analysis.promotionReadiness}%
+                  </span>
+                </div>
+                {topGap ? (
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#92400e', background: '#fffbeb', borderRadius: 6, padding: '6px 10px' }}>
+                    Top gap: <strong>{topGap.competencyName}</strong> — {topGap.recommendation?.why || 'Development needed'}
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#065f46', background: '#ecfdf5', borderRadius: 6, padding: '6px 10px' }}>
+                    ✅ No significant competency gaps
+                  </div>
+                )}
+                {e.competencyNotes ? (
+                  <div style={{ marginTop: 6, fontSize: 12, color: '#6b7280', fontStyle: 'italic' }}>
+                    Note: {e.competencyNotes}
+                  </div>
+                ) : null}
+                <button className="btn-view" style={{ marginTop: 10, width: '100%' }} onClick={() => setOpenEmpId(e.id)}>
+                  View Development Plan
+                </button>
               </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                <div className="settings-metric">
-                  <span className="settings-metric-value">{e.performance}%</span>
-                  <span className="settings-metric-label">Performance</span>
-                </div>
-                <div className="settings-metric">
-                  <span className="settings-metric-value">{e.competency}%</span>
-                  <span className="settings-metric-label">Competency</span>
-                </div>
-                <div className="settings-metric">
-                  <span className="settings-metric-value">{e.training}%</span>
-                  <span className="settings-metric-label">Training</span>
-                </div>
-              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Team member development plan modal */}
+      {openEmp && openAnalysis && (
+        <div className="modal-overlay" onClick={() => setOpenEmpId(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Development Plan — {openEmp.name}</h3>
+              <button className="modal-close" onClick={() => setOpenEmpId(null)}>&times;</button>
             </div>
-          ))}
+            <div className="modal-body">
+              <div className="profile-row"><span className="profile-label">Role</span><span className="profile-value">{openEmp.role}</span></div>
+              <div className="profile-row"><span className="profile-label">Department</span><span className="profile-value">{openEmp.department}</span></div>
+              {openEmp.qualifications ? <div className="profile-row"><span className="profile-label">Qualifications</span><span className="profile-value">{openEmp.qualifications}</span></div> : null}
+              <div className="profile-row"><span className="profile-label">Employment Status</span><span className="profile-value">{openEmp.employmentStatus || '—'}</span></div>
+              <div className="profile-row"><span className="profile-label">Date Hired</span><span className="profile-value">{openEmp.dateHired || '—'}</span></div>
+              <div className="profile-row"><span className="profile-label">Overall Score</span><span className="profile-value">{openAnalysis.overallScore}%</span></div>
+              <div className="profile-row"><span className="profile-label">Promotion Readiness</span><span className="profile-value">{openAnalysis.promotionReadiness}%</span></div>
+              {openEmp.competencyNotes ? <div className="profile-row"><span className="profile-label">HR Notes</span><span className="profile-value" style={{ fontStyle: 'italic' }}>{openEmp.competencyNotes}</span></div> : null}
+              <h4 style={{ marginTop: 14, marginBottom: 8 }}>Gap Analysis & Recommendations</h4>
+              {openAnalysis.gaps.filter(g => g.gap > 0).length === 0 ? (
+                <p style={{ color: 'var(--success)', fontWeight: 600 }}>No competency gaps — maintain current development &amp; pursue stretch assignments.</p>
+              ) : openAnalysis.gaps.filter(g => g.gap > 0).slice(0, 5).map((g) => (
+                <div key={g.competencyId} className="dev-plan-item">
+                  <div className="dev-plan-head">
+                    <strong>{g.competencyName}</strong>
+                    <span className="gap-pill high">{scoreLabel(g.currentLevel)} → {scoreLabel(g.requiredLevel)}</span>
+                  </div>
+                  {g.recommendation ? (
+                    <>
+                      <p className="dev-plan-why">{g.recommendation.why}</p>
+                      <ul className="dev-plan-actions">
+                        {g.recommendation.actions.slice(0, 3).map((a, i) => (
+                          <li key={i}><strong>{a.kind}:</strong> {a.title}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setOpenEmpId(null)}>Close</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -2156,15 +2331,57 @@ function MyTeamModule({ team }) {
 }
 
 // Performance Module
-function PerformanceModule({ employees, canEdit, defaultManagerId, addEmployee, updateEmployee, deleteEmployee, bulkDeleteEmployees }) {
+function PerformanceModule({ employees, attendance, competencies, canEdit, defaultManagerId, addEmployee, updateEmployee, deleteEmployee, bulkDeleteEmployees, updateEmployeeProfile, addAttendanceRecord, updateAttendanceRecord, deleteAttendanceRecord }) {
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false)
+  const [profileEmp, setProfileEmp] = useState(null)
+  const [profileDraft, setProfileDraft] = useState({})
+  const [attEmpId, setAttEmpId] = useState(null)
+  const [attDate, setAttDate] = useState(new Date().toISOString().split('T')[0])
+  const [attStatus, setAttStatus] = useState('Present')
+  const [attNotes, setAttNotes] = useState('')
+  const [attMsg, setAttMsg] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [filterDepartment, setFilterDepartment] = useState('All')
   const [sortBy, setSortBy] = useState('performance')
-  const [newEmp, setNewEmp] = useState({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80, managerEmployeeId: defaultManagerId || null })
+  const [newEmp, setNewEmp] = useState({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80, managerEmployeeId: defaultManagerId || null, qualifications: '', employmentStatus: 'Regular', dateHired: '' })
   const [selectedIds, setSelectedIds] = useState([])
+
+  const openProfile = (emp) => {
+    setProfileEmp(emp)
+    setProfileDraft({ qualifications: emp.qualifications || '', employmentStatus: emp.employmentStatus || 'Regular', dateHired: emp.dateHired || '' })
+    setShowProfileModal(true)
+  }
+
+  const saveProfile = () => {
+    if (!profileEmp) return
+    updateEmployeeProfile(profileEmp.id, profileDraft)
+    setShowProfileModal(false)
+    setProfileEmp(null)
+  }
+
+  const openAttendance = (empId) => {
+    setAttEmpId(empId)
+    setAttDate(new Date().toISOString().split('T')[0])
+    setAttStatus('Present')
+    setAttNotes('')
+    setAttMsg('')
+    setShowAttendanceModal(true)
+  }
+
+  const submitAttendance = () => {
+    if (!attEmpId || !attDate) return
+    addAttendanceRecord({ employeeId: attEmpId, date: attDate, status: attStatus, notes: attNotes })
+    setAttMsg('Attendance record saved.')
+    setAttDate(new Date().toISOString().split('T')[0])
+    setAttStatus('Present')
+    setAttNotes('')
+  }
+
+  const STATUS_COLORS = { Present: '#22c55e', Absent: '#ef4444', Late: '#f59e0b', Leave: '#3b82f6' }
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
@@ -2201,7 +2418,7 @@ function PerformanceModule({ employees, canEdit, defaultManagerId, addEmployee, 
     if (!canEdit) return
     if (newEmp.name && newEmp.role && newEmp.department) {
       addEmployee(newEmp)
-      setNewEmp({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80, managerEmployeeId: defaultManagerId || null })
+      setNewEmp({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80, managerEmployeeId: defaultManagerId || null, qualifications: '', employmentStatus: 'Regular', dateHired: '' })
       setShowAddForm(false)
     }
   }
@@ -2226,7 +2443,7 @@ function PerformanceModule({ employees, canEdit, defaultManagerId, addEmployee, 
       updateEmployee(selectedEmployee, newEmp)
       setShowEditForm(false)
       setSelectedEmployee(null)
-      setNewEmp({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80, managerEmployeeId: defaultManagerId || null })
+      setNewEmp({ name: '', role: '', department: '', performance: 80, competency: 80, training: 80, managerEmployeeId: defaultManagerId || null, qualifications: '', employmentStatus: 'Regular', dateHired: '' })
     }
   }
 
@@ -2439,6 +2656,14 @@ function PerformanceModule({ employees, canEdit, defaultManagerId, addEmployee, 
                 <option value="">— Manager / Supervisor (optional) —</option>
                 {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
+              <input type="text" placeholder="Qualifications (e.g. MD, RN, PRC Lic. No.)" value={newEmp.qualifications || ''} onChange={e => setNewEmp({...newEmp, qualifications: e.target.value})} />
+              <select value={newEmp.employmentStatus || 'Regular'} onChange={e => setNewEmp({...newEmp, employmentStatus: e.target.value})}>
+                <option value="Regular">Regular</option>
+                <option value="Probationary">Probationary</option>
+                <option value="Contractual">Contractual</option>
+                <option value="Part-time">Part-time</option>
+              </select>
+              <input type="date" placeholder="Date Hired" value={newEmp.dateHired || ''} onChange={e => setNewEmp({...newEmp, dateHired: e.target.value})} />
               <button type="submit" className="btn-save">Save Employee</button>
             </form>
           )}
@@ -2473,6 +2698,14 @@ function PerformanceModule({ employees, canEdit, defaultManagerId, addEmployee, 
                 <option value="">— Manager / Supervisor (optional) —</option>
                 {employees.filter(e => e.id !== selectedEmployee).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
+              <input type="text" placeholder="Qualifications (e.g. MD, RN, PRC Lic. No.)" value={newEmp.qualifications || ''} onChange={e => setNewEmp({...newEmp, qualifications: e.target.value})} />
+              <select value={newEmp.employmentStatus || 'Regular'} onChange={e => setNewEmp({...newEmp, employmentStatus: e.target.value})}>
+                <option value="Regular">Regular</option>
+                <option value="Probationary">Probationary</option>
+                <option value="Contractual">Contractual</option>
+                <option value="Part-time">Part-time</option>
+              </select>
+              <input type="date" placeholder="Date Hired" value={newEmp.dateHired || ''} onChange={e => setNewEmp({...newEmp, dateHired: e.target.value})} />
               <div className="form-buttons">
                 <button type="submit" className="btn-save">Update</button>
                 <button type="button" className="btn-cancel" onClick={() => { setShowEditForm(false); setSelectedEmployee(null) }}>Cancel</button>
@@ -2585,18 +2818,10 @@ function PerformanceModule({ employees, canEdit, defaultManagerId, addEmployee, 
                   <td>
                     {canEdit ? (
                       <div className="action-buttons">
-                        <button
-                          className="btn-edit"
-                          onClick={(e) => { e.stopPropagation(); setSelectedEmployee(emp.id); handleEditEmployee() }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn-delete"
-                          onClick={(e) => { e.stopPropagation(); setSelectedEmployee(emp.id); handleDeleteEmployee() }}
-                        >
-                          Delete
-                        </button>
+                        <button className="btn-edit" onClick={(e) => { e.stopPropagation(); setSelectedEmployee(emp.id); handleEditEmployee() }}>Edit</button>
+                        <button className="btn-view" onClick={(e) => { e.stopPropagation(); openProfile(emp) }}>Profile</button>
+                        <button className="btn-development" onClick={(e) => { e.stopPropagation(); openAttendance(emp.id) }}>Attendance</button>
+                        <button className="btn-delete" onClick={(e) => { e.stopPropagation(); setSelectedEmployee(emp.id); handleDeleteEmployee() }}>Delete</button>
                       </div>
                     ) : (
                       <span className="readonly-cell">View only</span>
@@ -2609,12 +2834,105 @@ function PerformanceModule({ employees, canEdit, defaultManagerId, addEmployee, 
           </table>
         </div>
       </div>
+
+      {/* Profile Modal — qualifications & employment info */}
+      {showProfileModal && profileEmp && (
+        <div className="modal-overlay" onClick={() => setShowProfileModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Employee Profile — {profileEmp.name}</h3>
+              <button className="modal-close" onClick={() => setShowProfileModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="profile-row"><span className="profile-label">Role</span><span className="profile-value">{profileEmp.role}</span></div>
+              <div className="profile-row"><span className="profile-label">Department</span><span className="profile-value">{profileEmp.department}</span></div>
+              <div className="profile-row">
+                <span className="profile-label">Qualifications</span>
+                <textarea
+                  value={profileDraft.qualifications || ''}
+                  onChange={(e) => setProfileDraft({ ...profileDraft, qualifications: e.target.value })}
+                  placeholder="e.g. MD, RN, PRC Lic. No. 0012345, Board Certified"
+                  rows={2}
+                  style={{ width: '100%', resize: 'vertical', padding: 6, borderRadius: 6, border: '1px solid var(--border, #e5e7eb)' }}
+                />
+              </div>
+              <div className="profile-row">
+                <span className="profile-label">Employment Status</span>
+                <select value={profileDraft.employmentStatus || 'Regular'} onChange={(e) => setProfileDraft({ ...profileDraft, employmentStatus: e.target.value })} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border, #e5e7eb)' }}>
+                  <option value="Regular">Regular</option>
+                  <option value="Probationary">Probationary</option>
+                  <option value="Contractual">Contractual</option>
+                  <option value="Part-time">Part-time</option>
+                </select>
+              </div>
+              <div className="profile-row">
+                <span className="profile-label">Date Hired</span>
+                <input type="date" value={profileDraft.dateHired || ''} onChange={(e) => setProfileDraft({ ...profileDraft, dateHired: e.target.value })} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border, #e5e7eb)' }} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setShowProfileModal(false)}>Cancel</button>
+              <button className="btn-save" onClick={saveProfile}>Save Profile</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attendance Modal */}
+      {showAttendanceModal && (
+        <div className="modal-overlay" onClick={() => setShowAttendanceModal(false)}>
+          <div className="modal" style={{ maxWidth: 600 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Attendance — {employees.find(e => e.id === attEmpId)?.name || '—'}</h3>
+              <button className="modal-close" onClick={() => setShowAttendanceModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              {attMsg ? <div className="account-msg success">{attMsg}</div> : null}
+              <div className="data-form" style={{ marginBottom: 16 }}>
+                <input type="date" value={attDate} onChange={(e) => setAttDate(e.target.value)} />
+                <select value={attStatus} onChange={(e) => setAttStatus(e.target.value)}>
+                  {['Present', 'Absent', 'Late', 'Leave'].map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <input type="text" placeholder="Notes (optional)" value={attNotes} onChange={(e) => setAttNotes(e.target.value)} />
+                <button className="btn-save" onClick={submitAttendance}>Log Record</button>
+              </div>
+              <h4 style={{ marginBottom: 8 }}>History</h4>
+              <table className="sessions-table">
+                <thead><tr><th>Date</th><th>Status</th><th>Notes</th><th></th></tr></thead>
+                <tbody>
+                  {attendance.filter(r => r.employeeId === attEmpId).sort((a, b) => b.date.localeCompare(a.date)).map(r => (
+                    <tr key={r.id}>
+                      <td>{r.date}</td>
+                      <td><span style={{ color: STATUS_COLORS[r.status] || '#333', fontWeight: 600 }}>{r.status}</span></td>
+                      <td>{r.notes || '—'}</td>
+                      <td><button className="btn-delete" onClick={() => deleteAttendanceRecord(r.id)}>×</button></td>
+                    </tr>
+                  ))}
+                  {attendance.filter(r => r.employeeId === attEmpId).length === 0 && (
+                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: 12 }}>No records yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+              <div style={{ marginTop: 14 }}>
+                <strong>Summary: </strong>
+                {['Present', 'Absent', 'Late', 'Leave'].map(s => {
+                  const count = attendance.filter(r => r.employeeId === attEmpId && r.status === s).length
+                  return <span key={s} style={{ marginRight: 12, color: STATUS_COLORS[s] }}>{s}: {count}</span>
+                })}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setShowAttendanceModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 // Competency Module
-function CompetencyModule({ competencies, canEdit, employees, addCompetency, updateCompetency, deleteCompetency }) {
+function CompetencyModule({ competencies, canEdit, employees, addCompetency, updateCompetency, deleteCompetency, updateCompetencyNotes }) {
   // Dynamic color based on percentage value
   const compColor = (val) => {
     if (val >= 85) return '#22c55e' // green
@@ -2903,27 +3221,71 @@ function CompetencyModule({ competencies, canEdit, employees, addCompetency, upd
             </tbody>
           </table>
         </div>
+
+        {/* Qualitative Competency Notes per employee */}
+        <div className="training-needs-panel">
+          <h2 className="panel-title"><span className="panel-title-icon"><Icon name="competency" size={18} /></span> Qualitative Competency Notes</h2>
+          <p className="training-needs-subtitle">HR observations alongside numeric scores — required by RA 10173 for balanced assessment</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {employees.map((emp) => (
+              <div key={emp.id} style={{ background: 'var(--surface, #f9fafb)', borderRadius: 8, padding: 12, border: '1px solid var(--border, #e5e7eb)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <strong>{emp.name}</strong>
+                  <span style={{ fontSize: 12, color: '#6b7280' }}>{emp.role} · {emp.department} · Competency: {emp.competency}%</span>
+                </div>
+                <textarea
+                  disabled={!canEdit}
+                  rows={2}
+                  placeholder="Add qualitative observations, behavioural notes, or context for this employee's competency scores…"
+                  value={emp.competencyNotes || ''}
+                  onChange={(e) => updateCompetencyNotes(emp.id, e.target.value)}
+                  style={{ width: '100%', resize: 'vertical', padding: 8, borderRadius: 6, border: '1px solid var(--border, #e5e7eb)', fontSize: 13, opacity: canEdit ? 1 : 0.7 }}
+                />
+              </div>
+            ))}
+            {employees.length === 0 && <div className="attention-empty">No employees yet.</div>}
+          </div>
+        </div>
       </div>
     </div>
   )
 }
-
-// Learning & Training Module
-function LearningModule({ trainingPrograms, addTraining, deleteTraining, registerTraining, registrations, canEdit, role, roles, userName }) {
+function LearningModule({ trainingPrograms, competencies, employees, registrations, addTraining, deleteTraining, registerTraining, markTrainingCompletedForEmployee, canEdit, role, roles, userName }) {
   const [showAddForm, setShowAddForm] = useState(false)
-  const [newProg, setNewProg] = useState({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '', expiresOn: '' })
+  const [newProg, setNewProg] = useState({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '', expiresOn: '', competencyIds: [] })
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
+  const [feedbackModal, setFeedbackModal] = useState(null) // { programId, employeeId, emp, program }
+  const [feedbackScore, setFeedbackScore] = useState(null)
 
   const handleAddTraining = (e) => {
     e.preventDefault()
     if (!canEdit) return
     if (newProg.title) {
-      addTraining(newProg)
+      addTraining({ ...newProg, competencyIds: newProg.competencyIds || [] })
       setMsg(`Training program "${newProg.title}" created.`)
-      setNewProg({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '', expiresOn: '' })
+      setNewProg({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '', expiresOn: '', competencyIds: [] })
       setShowAddForm(false)
     }
+  }
+
+  const toggleCompetencyLink = (compId) => {
+    setNewProg((prev) => {
+      const ids = prev.competencyIds || []
+      return { ...prev, competencyIds: ids.includes(compId) ? ids.filter(x => x !== compId) : [...ids, compId] }
+    })
+  }
+
+  const openFeedback = (prog, emp) => {
+    setFeedbackModal({ programId: prog.id, employeeId: emp.id, emp, program: prog })
+    setFeedbackScore(emp.competency)
+  }
+
+  const submitFeedback = () => {
+    if (!feedbackModal) return
+    markTrainingCompletedForEmployee(feedbackModal.employeeId, feedbackModal.programId, feedbackScore)
+    setMsg(`${feedbackModal.emp.name}'s training score updated. Competency score set to ${feedbackScore}%.`)
+    setFeedbackModal(null)
   }
 
   // Simple client-side .ics generator for "Add to calendar" on a registration.
@@ -3028,6 +3390,17 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
               <option value="ongoing">Ongoing</option>
               <option value="completed">Completed</option>
             </select>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <p style={{ margin: '0 0 6px', fontWeight: 600, fontSize: 13 }}>Linked Competency Areas (addresses which gaps?)</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {competencies.map((c) => (
+                  <label key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={(newProg.competencyIds || []).includes(c.id)} onChange={() => toggleCompetencyLink(c.id)} />
+                    {c.name}
+                  </label>
+                ))}
+              </div>
+            </div>
             <button type="submit" className="btn-save">Save Program</button>
           </form>
         )}
@@ -3088,6 +3461,14 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
                 <span>👥 {prog.participants}{prog.seats ? ` / ${prog.seats}` : ''}</span>
                 {prog.cost ? <span>💰 ${prog.cost}</span> : null}
               </div>
+              {(prog.competencyIds || []).length > 0 ? (
+                <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {(prog.competencyIds || []).map((cid) => {
+                    const comp = competencies.find(c => c.id === cid)
+                    return comp ? <span key={cid} className="comp-category-tag" style={{ fontSize: 11 }}>🎯 {comp.name}</span> : null
+                  })}
+                </div>
+              ) : null}
               <div className="program-progress">
                 <div className="program-progress-bar">
                   <div className="program-progress-fill" style={{ width: prog.status === 'completed' ? '100%' : prog.status === 'ongoing' ? '65%' : '0%' }}></div>
@@ -3099,6 +3480,14 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
                   <button className="btn-register" onClick={() => handleRegister(prog.id)}>Register</button>
                 ) : null}
                 {registeredIds.has(prog.id) ? <span className="registered-badge">✓ Registered</span> : null}
+                {canManage && (prog.status === 'ongoing' || prog.status === 'completed') ? (
+                  <button className="btn-development" onClick={() => {
+                    const emp = employees[0]
+                    if (emp) openFeedback(prog, emp)
+                  }} title="Mark complete for an employee and update their scores">
+                    ✓ Complete for Employee
+                  </button>
+                ) : null}
                 {canEdit && canManage ? (
                   <button className="btn-delete" onClick={() => handleDelete(prog.id)}>Delete</button>
                 ) : null}
@@ -3192,6 +3581,52 @@ function LearningModule({ trainingPrograms, addTraining, deleteTraining, registe
           </tbody>
         </table>
       </div>
+
+      {/* Feedback Loop Modal — mark training complete for an employee */}
+      {feedbackModal && (
+        <div className="modal-overlay" onClick={() => setFeedbackModal(null)}>
+          <div className="modal" style={{ maxWidth: 500 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Mark Training Complete</h3>
+              <button className="modal-close" onClick={() => setFeedbackModal(null)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: 12 }}><strong>Program:</strong> {feedbackModal.program.title}</p>
+              <p style={{ marginBottom: 16 }}>Select the employee who completed this program and update their competency score to reflect the learning:</p>
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: 600, fontSize: 13 }}>Employee</label>
+              <select
+                value={feedbackModal.employeeId}
+                onChange={(e) => {
+                  const emp = employees.find(x => x.id === Number(e.target.value))
+                  if (emp) { setFeedbackModal({ ...feedbackModal, employeeId: emp.id, emp }); setFeedbackScore(emp.competency) }
+                }}
+                style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border, #e5e7eb)', marginBottom: 16 }}
+              >
+                {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13 }}>
+                Updated Competency Score: {feedbackScore}%
+              </label>
+              <input
+                type="range" min="0" max="100"
+                value={feedbackScore}
+                onChange={(e) => setFeedbackScore(Number(e.target.value))}
+                style={{ width: '100%', marginBottom: 8 }}
+              />
+              <p style={{ fontSize: 12, color: '#6b7280' }}>
+                Training score will also be bumped by +3 points (capped at 100%).
+                {(feedbackModal.program.competencyIds || []).length > 0 ? (
+                  <> This program is linked to: <strong>{(feedbackModal.program.competencyIds || []).map(id => competencies.find(c => c.id === id)?.name).filter(Boolean).join(', ')}</strong>.</>
+                ) : null}
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setFeedbackModal(null)}>Cancel</button>
+              <button className="btn-save" onClick={submitFeedback}>Confirm Completion</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -4554,6 +4989,31 @@ function SettingsModule({ employees, accounts, canEdit, updateEmployeePhoto, upd
             />
             <button className="btn-save" onClick={saveMyProfile}>{profileSaved ? 'Saved ✓' : 'Save Profile'}</button>
           </div>
+        </div>
+      </div>
+
+      {/* Data Privacy Notice — RA 10173 */}
+      <div className="training-needs-panel" style={{ marginBottom: 24 }}>
+        <h2 className="panel-title"><span className="panel-title-icon"><Icon name="shield" size={18} /></span> Data Privacy Notice</h2>
+        <div style={{ fontSize: 13, lineHeight: 1.8, color: 'var(--text-secondary, #6b7280)' }}>
+          <p><strong style={{ color: 'var(--text, #111827)' }}>Republic Act No. 10173 — Data Privacy Act of 2012</strong></p>
+          <p>
+            All employee records stored in this system — including personal information, performance evaluations,
+            competency assessments, training histories, attendance records, and development plans — are considered
+            <strong> personal data</strong> under the Data Privacy Act of 2012 (RA 10173) of the Republic of the Philippines.
+          </p>
+          <ul style={{ paddingLeft: 18, margin: '8px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <li>Access to employee records is restricted to authorised personnel based on their assigned system role.</li>
+            <li>Data must not be disclosed, copied, or transmitted to unauthorised parties inside or outside the institution.</li>
+            <li>All data processing activities are logged in the Audit Log and subject to institutional data governance policies.</li>
+            <li>Employees have the right to access, correct, and request deletion of their own personal data in accordance with RA 10173.</li>
+            <li>AI-generated competency gap analysis outputs are for decision-support only and must not be the sole basis for any employment action.</li>
+          </ul>
+          <p>
+            For data privacy concerns, please contact your institution's designated Data Privacy Officer (DPO)
+            or the National Privacy Commission at{' '}
+            <a href="https://www.privacy.gov.ph" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary, #3b82f6)' }}>www.privacy.gov.ph</a>.
+          </p>
         </div>
       </div>
 
