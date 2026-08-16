@@ -693,7 +693,7 @@ const [accounts, setAccounts] = useState(() => getStoredData('ihims_accounts', i
   const [loading] = useState(false)
   const [loadError] = useState('')
 
-const roleDisplayName = useMemo(() => rolesLabel(roles), [roles])
+const roleDisplayName = useMemo(() => roleLabel(primaryRoleOf(roles)), [roles])
 
   // Real-time cross-tab sync: listen for changes made in other tabs/windows
   useEffect(() => {
@@ -1473,7 +1473,7 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
           {myPhoto ? <img className="user-avatar-img" src={myPhoto} alt={userName || 'My profile'} /> : <Icon name="user" size={18} />}
         </span>
         <span className="user-name">{userName}</span>
-        <span className="role-badge">{rolesLabel(roles)}</span>
+        <span className="role-badge">{roleLabel(primaryRoleOf(roles))}</span>
       </div>
     </nav>
   )
@@ -1554,7 +1554,9 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
       <div className="quick-actions" style={{ marginBottom: 16 }}>
         <button className="quick-action" onClick={() => onNavigate && onNavigate('orgchart')}><Icon name="accounts" size={16} /> Org Chart</button>
         <button className="quick-action" onClick={() => onNavigate && onNavigate('myDevelopment')}><Icon name="ai" size={16} /> My Development Plan</button>
-        <button className="quick-action" onClick={() => onNavigate && onNavigate('myTeam')}><Icon name="accounts" size={16} /> My Team</button>
+        {(roles || []).some(r => r === 'admin' || r === 'hr') ? (
+          <button className="quick-action" onClick={() => onNavigate && onNavigate('myTeam')}><Icon name="accounts" size={16} /> My Team</button>
+        ) : null}
         {canEdit ? (
           <button className="quick-action" onClick={() => onNavigate && onNavigate('reviews')}><Icon name="performance" size={16} /> Performance Reviews</button>
         ) : null}
@@ -4965,7 +4967,7 @@ function SettingsModule({ employees, accounts, canEdit, updateEmployeePhoto, upd
         <div className="settings-profile-info">
           <h2>{userName || 'My Profile'}</h2>
           <div className="settings-profile-meta">
-            <span className="role-badge">{rolesLabel(roles || [role])}</span>
+            <span className="role-badge">{roleLabel(primaryRoleOf(roles || [role]))}</span>
             {myEmail ? <span className="settings-profile-email">{myEmail}</span> : null}
             {myAccount ? <span className="settings-profile-email">{myAccount.username}</span> : null}
           </div>
