@@ -48,6 +48,142 @@ const clearStoredSession = () => {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Trusted-Device Management
+//
+// A "trusted device" token is stored in localStorage keyed by the user's
+// email. It records:
+//   - deviceId  : a stable random ID generated once per browser profile
+//   - email     : the account email this trust was granted to
+//   - grantedAt : Unix timestamp (ms) when OTP was last verified
+//   - expiresAt : grantedAt + 7 days
+//   - hash      : a simple tamper-evident fingerprint
+//
+// SECURITY NOTE FOR PRODUCTION:
+// In a production system (e.g. after Supabase migration), trust tokens must
+// be validated server-side. The server issues a signed JWT with expiry and
+// the client presents it on each login. The server independently checks
+// expiry and revocation, so a tampered or replayed token is rejected.
+// The current implementation is client-side only and is appropriate for a
+// capstone/demo environment targeting localStorage-based deployment.
+// ---------------------------------------------------------------------------
+
+const TRUST_KEY_PREFIX = 'ihims_trust_'
+const DEVICE_ID_KEY = 'ihims_device_id'
+const TRUST_DURATION_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+
+// Get or create a stable device ID for this browser profile.
+const getDeviceId = () => {
+  try {
+    let id = localStorage.getItem(DEVICE_ID_KEY)
+    if (!id) {
+      id = 'dev_' + Math.random().toString(36).slice(2) + Date.now().toString(36)
+      localStorage.setItem(DEVICE_ID_KEY, id)
+    }
+    return id
+  } catch {
+    return 'dev_unknown'
+  }
+}
+
+// Simple tamper-evident hash: concatenate key fields with a fixed salt.
+// Not cryptographically secure but detects naive localStorage edits.
+const trustHash = (email, deviceId, grantedAt) => {
+  const raw = `ihims|${email}|${deviceId}|${grantedAt}|7d`
+  let h = 0
+  for (let i = 0; i < raw.length; i++) {
+    h = ((h << 5) - h + raw.charCodeAt(i)) >>> 0
+  }
+  return h.toString(16)
+}
+
+const trustKey = (email) => `${TRUST_KEY_PREFIX}${(email || '').toLowerCase()}`
+
+// Grant trust for the current device after successful OTP verification.
+const grantDeviceTrust = (email) => {
+  try {
+    const deviceId = getDeviceId()
+    const grantedAt = Date.now()
+    const expiresAt = grantedAt + TRUST_DURATION_MS
+    const token = { deviceId, email, grantedAt, expiresAt, hash: trustHash(email, deviceId, grantedAt) }
+    localStorage.setItem(trustKey(email), JSON.stringify(token))
+    return token
+  } catch {
+    return null
+  }
+}
+
+// Check if the current device is trusted for this email.
+// Returns { trusted: true, daysLeft } or { trusted: false, reason }.
+const checkDeviceTrust = (email) => {
+  try {
+    const raw = localStorage.getItem(trustKey(email))
+    if (!raw) return { trusted: false, reason: 'no_token' }
+    const token = JSON.parse(raw)
+
+    // Verify device matches
+    const deviceId = getDeviceId()
+    if (token.deviceId !== deviceId) return { trusted: false, reason: 'device_mismatch' }
+
+    // Verify email matches
+    if ((token.email || '').toLowerCase() !== (email || '').toLowerCase()) return { trusted: false, reason: 'email_mismatch' }
+
+    // Verify expiry
+    if (Date.now() > token.expiresAt) return { trusted: false, reason: 'expired' }
+
+    // Verify hash (tamper detection)
+    const expectedHash = trustHash(token.email, token.deviceId, token.grantedAt)
+    if (token.hash !== expectedHash) return { trusted: false, reason: 'tampered' }
+
+    const daysLeft = Math.ceil((token.expiresAt - Date.now()) / (1000 * 60 * 60 * 24))
+    return { trusted: true, daysLeft }
+  } catch {
+    return { trusted: false, reason: 'error' }
+  }
+}
+
+// Revoke trust for the current device (used on password change or
+// "Log out of all devices"). Does NOT clear the session itself.
+const revokeDeviceTrust = (email) => {
+  try {
+    localStorage.removeItem(trustKey(email))
+  } catch {
+    // ignore
+  }
+}
+
+// "Log out of all devices": revoke trust on current device AND set a
+// revocation timestamp in localStorage that other tabs/devices on the
+// SAME browser profile can detect. True cross-device revocation requires
+// server-side session management (Supabase) — documented below.
+const REVOCATION_KEY = 'ihims_revocation'
+const revokeAllDevices = (email) => {
+  try {
+    revokeDeviceTrust(email)
+    // Store a revocation record so other same-browser tabs know.
+    // NOTE: This cannot reach other physical devices — that requires a
+    // server-side revocation list checked on each request. Implement via
+    // Supabase `sessions` table in production.
+    const rec = { email, revokedAt: Date.now() }
+    localStorage.setItem(REVOCATION_KEY, JSON.stringify(rec))
+  } catch {
+    // ignore
+  }
+}
+
+const checkRevocation = (email) => {
+  try {
+    const raw = localStorage.getItem(REVOCATION_KEY)
+    if (!raw) return false
+    const rec = JSON.parse(raw)
+    if ((rec.email || '').toLowerCase() !== (email || '').toLowerCase()) return false
+    // Revocation record is only relevant for 7 days
+    return Date.now() - rec.revokedAt < TRUST_DURATION_MS
+  } catch {
+    return false
+  }
+}
+
 const getStoredData = (key, fallback) => {
   try {
     const raw = localStorage.getItem(key)
@@ -678,7 +814,7 @@ function LiveClock() {
 }
 
 // App Content - localStorage-backed
-function AppContent({ role, roles, userName, userEmail, myPhoto, onUpdateMyPhoto, onLogout }) {
+function AppContent({ role, roles, userName, userEmail, myPhoto, onUpdateMyPhoto, onLogout, onLogoutAll, trustedDevice, trustDaysLeft }) {
   const [employees, setEmployees] = useState(() => getStoredData('ihims_employees', initialEmployees))
   const [trainingPrograms, setTrainingPrograms] = useState(() => getStoredData('ihims_training', initialTrainingPrograms))
   const [competencies, setCompetencies] = useState(() => getStoredData('ihims_competencies', initialCompetencies))
@@ -961,6 +1097,16 @@ const addAccount = (acc) => {
       throw new Error(`An account with username "${username}" already exists`)
     }
     setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, ...data, email: email || a.email, username: username || a.username } : a)))
+
+    // If password changed, revoke device trust for that account so OTP is
+    // required on next login (Requirement #6 — password change triggers re-auth)
+    const targetEmail = email || (target?.email || '')
+    const passwordChanged = data.password && data.password !== (target?.password || '')
+    if (passwordChanged && targetEmail) {
+      revokeDeviceTrust(targetEmail)
+      appendAudit({ user: actor.name, role, action: 'security', module: 'accounts', detail: `Password changed for "${targetEmail}" — device trust revoked` })
+    }
+
     appendAudit({ user: actor.name, role, action: 'update', module: 'accounts', detail: `Updated account "${target?.email || target?.username || id}"` })
   }
 
@@ -1354,6 +1500,19 @@ default:
 
   const [activeModule, setActiveModule] = useState('dashboard')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [showLogoutMenu, setShowLogoutMenu] = useState(false)
+  const logoutMenuRef = useRef(null)
+
+  useEffect(() => {
+    if (!showLogoutMenu) return
+    const handler = (e) => {
+      if (logoutMenuRef.current && !logoutMenuRef.current.contains(e.target)) {
+        setShowLogoutMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showLogoutMenu])
 
   return (
     <div className="app">
@@ -1377,6 +1536,17 @@ default:
           <LiveClock />
           <span className="status-indicator"><span className="status-dot"></span> Online</span>
           <div className="header-actions">
+            {/* Trusted device indicator */}
+            {trustedDevice ? (
+              <span title={`This device is trusted for ${trustDaysLeft ?? 7} more day(s). OTP will not be required on next login.`} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: 11, fontWeight: 600, color: '#059669',
+                background: '#ecfdf5', border: '1px solid #6ee7b7',
+                borderRadius: 999, padding: '3px 10px', cursor: 'default',
+              }}>
+                🔒 Trusted · {trustDaysLeft ?? 7}d
+              </span>
+            ) : null}
 <NotificationBell
               announcements={announcements}
               trainingPrograms={trainingPrograms}
@@ -1384,9 +1554,47 @@ default:
               userName={actor.name}
               onNavigate={(mod) => { setActiveModule(mod); setMobileMenuOpen(false) }}
             />
-<button className="btn-cancel" onClick={onLogout} type="button">
-              <Icon name="logout" size={16} /> Logout
-            </button>
+            <div style={{ position: 'relative', display: 'inline-block' }} ref={logoutMenuRef}>
+              <button className="btn-cancel" onClick={() => setShowLogoutMenu((p) => !p)} type="button">
+                <Icon name="logout" size={16} /> Logout
+              </button>
+              {showLogoutMenu && (
+                <div style={{
+                  position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 999,
+                  background: 'var(--surface, #fff)', border: '1px solid var(--border, #e5e7eb)',
+                  borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.12)', minWidth: 220, overflow: 'hidden',
+                }}>
+                  <button
+                    type="button"
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left' }}
+                    onClick={() => { setShowLogoutMenu(false); onLogout() }}
+                  >
+                    <Icon name="logout" size={15} />
+                    <div>
+                      <div style={{ fontWeight: 600 }}>Log out</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Keeps this device trusted</div>
+                    </div>
+                  </button>
+                  <div style={{ borderTop: '1px solid var(--border, #e5e7eb)' }} />
+                  <button
+                    type="button"
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left', color: '#dc2626' }}
+                    onClick={() => {
+                      setShowLogoutMenu(false)
+                      if (confirm('This will log you out and remove trust from all devices on this browser. Continue?')) {
+                        onLogoutAll()
+                      }
+                    }}
+                  >
+                    <Icon name="logout" size={15} />
+                    <div>
+                      <div style={{ fontWeight: 600 }}>Log out of all devices</div>
+                      <div style={{ fontSize: 11, color: '#ef4444' }}>Requires OTP on next login</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -5225,8 +5433,7 @@ const [stage, setStage] = useState('email') // 'email' | 'password' | 'otp' | 'r
     setInfo('')
     setBusy(true)
 
-    // Accounts with no password set (e.g. owner seeds) skip password check
-    // and go straight to OTP — this keeps existing accounts working.
+    // Check password
     const storedPw = pendingAccount.password || ''
     if (storedPw && password !== storedPw) {
       setBusy(false)
@@ -5235,24 +5442,46 @@ const [stage, setStage] = useState('email') // 'email' | 'password' | 'otp' | 'r
       return
     }
 
-    // Password correct (or not set) — now send OTP
+    // Password correct — check if this device is trusted and not revoked
+    const revoked = checkRevocation(pendingEmail)
+    const trust = revoked ? { trusted: false, reason: 'revoked' } : checkDeviceTrust(pendingEmail)
+
+    if (trust.trusted) {
+      // Trusted device within 7 days — skip OTP, log in directly
+      const accountRoles = getAccountRoles(pendingAccount)
+      const name = pendingAccount.name || roleLabel(pendingAccount.role)
+      appendAudit({ user: pendingEmail, role: pendingAccount.role, action: 'login', module: 'auth', detail: `Trusted-device login — ${trust.daysLeft}d remaining (no OTP required)` })
+      setBusy(false)
+      onLogin({ role: pendingAccount.role, roles: accountRoles, name, email: pendingEmail, trustedDevice: true, trustDaysLeft: trust.daysLeft })
+      return
+    }
+
+    // Untrusted / expired device — send OTP
+    const trustReason = {
+      no_token: 'New device — OTP required.',
+      expired: 'Trusted-device period expired — OTP required.',
+      revoked: 'Sessions were revoked — OTP required.',
+      device_mismatch: 'Different device — OTP required.',
+      tampered: 'Security check failed — OTP required.',
+    }[trust.reason] || 'OTP verification required.'
+
     try {
       if (demoOtpEnabled()) {
         startDemoOtp(pendingEmail)
-        appendAudit({ user: pendingEmail, role: pendingAccount.role, action: 'login_attempt', module: 'auth', detail: 'Demo OTP generated after password verified' })
+        appendAudit({ user: pendingEmail, role: pendingAccount.role, action: 'login_attempt', module: 'auth', detail: `Demo OTP sent — reason: ${trust.reason}` })
       } else {
         await sendOtp(pendingEmail)
         setDemoMode(false)
         setOtp('')
         setStage('otp')
-        setInfo(`A 6-digit verification code has been sent to ${pendingEmail}.`)
-        appendAudit({ user: pendingEmail, role: pendingAccount.role, action: 'login_attempt', module: 'auth', detail: 'Email OTP sent after password verified' })
+        setInfo(`${trustReason} A 6-digit code has been sent to ${pendingEmail}.`)
+        appendAudit({ user: pendingEmail, role: pendingAccount.role, action: 'login_attempt', module: 'auth', detail: `Email OTP sent — reason: ${trust.reason}` })
       }
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[IHIMS] Supabase OTP failed, using demo fallback:', err)
       startDemoOtp(pendingEmail)
-      appendAudit({ user: pendingEmail, role: pendingAccount.role, action: 'login_attempt', module: 'auth', detail: 'Supabase OTP failed, used demo OTP fallback' })
+      appendAudit({ user: pendingEmail, role: pendingAccount.role, action: 'login_attempt', module: 'auth', detail: 'Supabase OTP failed, used demo fallback' })
     } finally {
       setBusy(false)
     }
@@ -5337,8 +5566,11 @@ const normalized = otp.trim()
       const accountRoles = getAccountRoles(account)
       const name = account.name || roleLabel(role)
 
-      appendAudit({ user: pendingEmail, role, action: 'login', module: 'auth', detail: `Successful login as ${rolesLabel(accountRoles)}` })
-      onLogin({ role, roles: accountRoles, name, email: pendingEmail })
+      // Grant device trust for 7 days after successful OTP
+      const trustToken = grantDeviceTrust(pendingEmail)
+
+      appendAudit({ user: pendingEmail, role, action: 'login', module: 'auth', detail: `Successful OTP login — device trusted for 7 days` })
+      onLogin({ role, roles: accountRoles, name, email: pendingEmail, trustedDevice: true, trustDaysLeft: trustToken ? 7 : 0 })
 } catch (err) {
       setError(err?.message || 'Incorrect or expired code. Please try again.')
     } finally {
@@ -5460,11 +5692,17 @@ const featureCards = [
             {/* Step indicator */}
             {stage !== 'register' ? (
               <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '10px 0 4px' }}>
-                {[
-                  { key: 'email', label: '1. Email' },
-                  { key: 'password', label: '2. Password' },
-                  { key: 'otp', label: '3. Verify' },
-                ].map((step, i) => {
+                {(stage === 'otp'
+                  ? [
+                    { key: 'email', label: '1. Email' },
+                    { key: 'password', label: '2. Password' },
+                    { key: 'otp', label: '3. Verify OTP' },
+                  ]
+                  : [
+                    { key: 'email', label: '1. Email' },
+                    { key: 'password', label: '2. Password' },
+                  ]
+                ).map((step, i, arr) => {
                   const stageOrder = { email: 0, password: 1, otp: 2 }
                   const current = stageOrder[stage] ?? 0
                   const isDone = stageOrder[step.key] < current
@@ -5482,7 +5720,7 @@ const featureCards = [
                       <span style={{ fontSize: 11, color: isActive ? 'var(--primary, #3b82f6)' : isDone ? '#22c55e' : '#9ca3af', fontWeight: isActive ? 700 : 400 }}>
                         {step.label}
                       </span>
-                      {i < 2 ? <div style={{ width: 20, height: 1, background: isDone ? '#22c55e' : '#e5e7eb' }} /> : null}
+                      {i < arr.length - 1 ? <div style={{ width: 20, height: 1, background: isDone ? '#22c55e' : '#e5e7eb' }} /> : null}
                     </div>
                   )
                 })}
@@ -5851,27 +6089,36 @@ value={otp}
 function App() {
   const [session, setSession] = useState(() => getStoredSession())
 
-const handleLogin = (s) => {
-    // Restore the user's saved profile photo (stored per-user so it survives
-    // logout/login — the session itself is cleared on logout).
+  const handleLogin = (s) => {
     const savedPhoto = getStoredUserPhoto(s.email)
     const next = savedPhoto ? { ...s, photo: savedPhoto } : { ...s }
     setStoredSession(next)
     setSession(next)
   }
 
+  // Normal logout: clears session but KEEPS device trust token so the
+  // user only needs Password (not OTP) when logging back in within 7 days.
   const handleLogout = () => {
     clearStoredSession()
     setSession(null)
   }
 
-  // Update the logged-in user's profile photo in the in-memory session so the
-  // UI reflects the change immediately (also persisted via updateMyPhoto).
+  // "Log out of all devices": clears session AND revokes trust on this
+  // device + broadcasts revocation to same-browser tabs. Other physical
+  // devices require server-side revocation (Supabase sessions table).
+  const handleLogoutAll = () => {
+    if (session?.email) {
+      revokeAllDevices(session.email)
+      appendAudit({ user: session.name || session.email, role: session.role || 'staff', action: 'logout_all', module: 'auth', detail: 'Logged out of all devices — trust revoked' })
+    }
+    clearStoredSession()
+    setSession(null)
+  }
+
   const handleUpdateMyPhoto = (photo) => {
     setSession((prev) => (prev ? { ...prev, photo } : prev))
   }
 
-// Wrap AppContent with a role-aware controller (RBAC).
   const role = session?.role || 'staff'
   const roles = session?.roles && session.roles.length ? session.roles : [role]
 
@@ -5880,14 +6127,17 @@ const handleLogin = (s) => {
       {!session ? (
         <LoginScreen onLogin={handleLogin} />
       ) : (
-<AppContent
+        <AppContent
           role={role}
           roles={roles}
           userName={session?.name}
           userEmail={session?.email}
           myPhoto={session?.photo}
+          trustedDevice={session?.trustedDevice}
+          trustDaysLeft={session?.trustDaysLeft}
           onUpdateMyPhoto={handleUpdateMyPhoto}
           onLogout={handleLogout}
+          onLogoutAll={handleLogoutAll}
         />
       )}
     </div>
