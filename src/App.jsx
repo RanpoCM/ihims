@@ -5098,15 +5098,17 @@ function SettingsModule({ employees, accounts, canEdit, updateEmployeePhoto, upd
 
 function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showTerms, setShowTerms] = useState(false)
-  const [termsTab, setTermsTab] = useState('toa') // 'toa' | 'eula'
+  const [termsTab, setTermsTab] = useState('toa')
 
-const [stage, setStage] = useState('email') // 'email' | 'otp' | 'register'
+const [stage, setStage] = useState('email') // 'email' | 'password' | 'otp' | 'register'
   const [pendingEmail, setPendingEmail] = useState(null)
+  const [pendingAccount, setPendingAccount] = useState(null)
 
   const [otp, setOtp] = useState('')
   const [demoOtp, setDemoOtp] = useState('')
@@ -5182,60 +5184,75 @@ const [stage, setStage] = useState('email') // 'email' | 'otp' | 'register'
     }
   }
 
-  const handleEmailSubmit = async (e) => {
+  const handleEmailSubmit = (e) => {
     e.preventDefault()
     const em = email.trim().toLowerCase()
     if (!em) { setError('Enter your email address'); return }
 
     setError('')
     setInfo('')
-    setBusy(true)
 
-// Look up the account by email (falling back to username) to map the role.
     const accounts = getAccountsWithSeeds()
     const account = accounts.find(
       (a) => (a.email || '').toLowerCase() === em || (a.username || '').toLowerCase() === em
     )
 
-    // Accounts must be provisioned by an administrator BEFORE they can log in.
-    // If the email is not in the registry, reject the request. This ensures
-    // only pre-approved users (with a defined role) can access the system.
     if (!account) {
-      setBusy(false)
       appendAudit({ user: em, role: 'unknown', action: 'login_failed', module: 'auth', detail: 'No account registered for this email' })
       setError('No account is registered with this email. Ask an administrator to create your account first.')
       return
     }
 
     if (account.status !== 'active') {
-      setBusy(false)
       appendAudit({ user: em, role: account.role, action: 'login_failed', module: 'auth', detail: 'Account disabled' })
       setError('This account is disabled. Contact an administrator.')
       return
     }
 
+    // Email verified — move to password stage
+    setPendingEmail(em)
+    setPendingAccount(account)
+    setPassword('')
+    setError('')
+    setStage('password')
+  }
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault()
+    if (!pendingAccount) { setStage('email'); return }
+
+    setError('')
+    setInfo('')
+    setBusy(true)
+
+    // Accounts with no password set (e.g. owner seeds) skip password check
+    // and go straight to OTP — this keeps existing accounts working.
+    const storedPw = pendingAccount.password || ''
+    if (storedPw && password !== storedPw) {
+      setBusy(false)
+      appendAudit({ user: pendingEmail, role: pendingAccount.role, action: 'login_failed', module: 'auth', detail: 'Incorrect password' })
+      setError('Incorrect password. Please try again.')
+      return
+    }
+
+    // Password correct (or not set) — now send OTP
     try {
       if (demoOtpEnabled()) {
-        startDemoOtp(em)
-        appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Demo OTP generated (no email sent)' })
+        startDemoOtp(pendingEmail)
+        appendAudit({ user: pendingEmail, role: pendingAccount.role, action: 'login_attempt', module: 'auth', detail: 'Demo OTP generated after password verified' })
       } else {
-        await sendOtp(em)
+        await sendOtp(pendingEmail)
         setDemoMode(false)
-        setPendingEmail(em)
         setOtp('')
         setStage('otp')
-        setInfo(`A 6-digit verification code has been sent to ${em}.`)
-        appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Email OTP sent' })
+        setInfo(`A 6-digit verification code has been sent to ${pendingEmail}.`)
+        appendAudit({ user: pendingEmail, role: pendingAccount.role, action: 'login_attempt', module: 'auth', detail: 'Email OTP sent after password verified' })
       }
-} catch (err) {
-      // If Supabase email delivery fails (e.g. SMTP not configured), gracefully
-      // fall back to a locally-generated code so login always works. The real
-      // Supabase error is still logged for diagnosis.
+    } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[IHIMS] Supabase OTP failed, using demo fallback:', err)
-      setDemoMode(false)
-      startDemoOtp(em)
-      appendAudit({ user: em, role: account.role, action: 'login_attempt', module: 'auth', detail: 'Supabase OTP failed, used demo OTP fallback' })
+      startDemoOtp(pendingEmail)
+      appendAudit({ user: pendingEmail, role: pendingAccount.role, action: 'login_attempt', module: 'auth', detail: 'Supabase OTP failed, used demo OTP fallback' })
     } finally {
       setBusy(false)
     }
@@ -5428,13 +5445,49 @@ const featureCards = [
           <div className="login-card">
 <div className="login-card-head">
               <span className="login-card-icon"><Icon name="shield" size={26} /></span>
-              <h1 className="login-title">{stage === 'otp' ? 'Verify Code' : 'Welcome Back'}</h1>
+              <h1 className="login-title">
+                {stage === 'otp' ? 'Verify Code' : stage === 'password' ? 'Enter Password' : 'Welcome Back'}
+              </h1>
 <p className="login-subtitle">
                 {stage === 'otp'
                   ? `Enter the verification code sent to ${pendingEmail}.`
-                  : 'Sign in with your email. We will send a one-time code.'}
+                  : stage === 'password'
+                  ? `Hello, ${pendingAccount?.name || pendingEmail}. Enter your password to continue.`
+                  : 'Sign in with your email address to get started.'}
               </p>
             </div>
+
+            {/* Step indicator */}
+            {stage !== 'register' ? (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '10px 0 4px' }}>
+                {[
+                  { key: 'email', label: '1. Email' },
+                  { key: 'password', label: '2. Password' },
+                  { key: 'otp', label: '3. Verify' },
+                ].map((step, i) => {
+                  const stageOrder = { email: 0, password: 1, otp: 2 }
+                  const current = stageOrder[stage] ?? 0
+                  const isDone = stageOrder[step.key] < current
+                  const isActive = step.key === stage
+                  return (
+                    <div key={step.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div style={{
+                        width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 700,
+                        background: isDone ? '#22c55e' : isActive ? 'var(--primary, #3b82f6)' : '#e5e7eb',
+                        color: isDone || isActive ? '#fff' : '#9ca3af',
+                      }}>
+                        {isDone ? '✓' : i + 1}
+                      </div>
+                      <span style={{ fontSize: 11, color: isActive ? 'var(--primary, #3b82f6)' : isDone ? '#22c55e' : '#9ca3af', fontWeight: isActive ? 700 : 400 }}>
+                        {step.label}
+                      </span>
+                      {i < 2 ? <div style={{ width: 20, height: 1, background: isDone ? '#22c55e' : '#e5e7eb' }} /> : null}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
 
 {stage === 'register' && !hasExistingAdmin ? (
               <form onSubmit={handleRegisterSubmit} className="login-form">
@@ -5493,13 +5546,14 @@ const featureCards = [
             ) : stage === 'email' ? (
               <form onSubmit={handleEmailSubmit} className="login-form">
                 <label className="login-field">
-                  <span>Email</span>
+                  <span>Email or Username</span>
                   <input
-                    type="email"
+                    type="text"
                     placeholder="you@ihims.local"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    autoFocus
                   />
                 </label>
 
@@ -5526,9 +5580,49 @@ const featureCards = [
                 </label>
 
                 <button type="submit" className="btn-save login-submit" disabled={busy || !acceptedTerms}>
-                  {busy ? 'Sending code…' : 'Send Verification Code →'}
+                  {busy ? 'Checking…' : 'Continue →'}
                 </button>
               </form>
+
+            ) : stage === 'password' ? (
+              <form onSubmit={handlePasswordSubmit} className="login-form">
+                <label className="login-field">
+                  <span>Password</span>
+                  <input
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </label>
+
+                {error ? <div className="login-error">{error}</div> : null}
+                {info ? <div className="login-info">{info}</div> : null}
+
+                <button type="submit" className="btn-save login-submit" disabled={busy}>
+                  {busy ? 'Verifying…' : 'Verify Password →'}
+                </button>
+
+                <div className="login-form-actions">
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => {
+                      setStage('email')
+                      setPassword('')
+                      setPendingEmail(null)
+                      setPendingAccount(null)
+                      setError('')
+                      setInfo('')
+                    }}
+                  >
+                    ← Back
+                  </button>
+                </div>
+              </form>
+
             ) : (
 <form onSubmit={handleOtpSubmit} className="login-form">
                 {demoMode && demoOtp ? (
@@ -5564,11 +5658,10 @@ value={otp}
                     type="button"
                     className="btn-cancel"
                     onClick={() => {
-                      setStage('email')
+                      setStage('password')
                       setError('')
                       setInfo('')
                       setOtp('')
-                      setPendingEmail(null)
                     }}
                   >
                     ← Back
