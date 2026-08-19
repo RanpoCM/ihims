@@ -766,7 +766,7 @@ function NotificationBell({ announcements, trainingPrograms, employees, onNaviga
           </div>
           <div className="notif-list">
             {notifications.length === 0 ? (
-              <div className="notif-empty">You're all caught up! 🎉</div>
+              <div className="notif-empty">You're all caught up.</div>
             ) : (
               notifications.map((n) => {
                 const isRead = readIds.includes(n.id)
@@ -977,6 +977,10 @@ const deleteTraining = (id) => {
     const already = registrations.some((r) => r.programId === programId && r.userId === actor.name)
     if (already) {
       throw new Error('You are already registered for this program')
+    }
+    // Enforce seat capacity — reject once the program is full
+    if (program.seats && (program.participants || 0) >= program.seats) {
+      throw new Error(`This program is at full capacity (${program.participants}/${program.seats} seats filled)`)
     }
     const newRow = { id: nextId(registrations), programId, userId: actor.name, programTitle: program.title, registeredOn: new Date().toISOString() }
     setRegistrations((prev) => [...prev, newRow])
@@ -1741,19 +1745,28 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
       {(() => {
         const items = []
         const lowPerf = employees.filter(e => e.performance < 80)
-        if (lowPerf.length) items.push(`⚠️ ${lowPerf.length} employee${lowPerf.length > 1 ? 's' : ''} ${lowPerf.length > 1 ? 'have' : 'has'} performance below 80% — e.g. ${lowPerf[0].name}.`)
+        if (lowPerf.length) items.push({ icon: 'warn', text: `${lowPerf.length} employee${lowPerf.length > 1 ? 's' : ''} ${lowPerf.length > 1 ? 'have' : 'has'} performance below 80% — e.g. ${lowPerf[0].name}.` })
         const gaps = employees.filter(e => e.competency < e.performance)
-        if (gaps.length) items.push(`🔍 ${gaps.length} employee${gaps.length > 1 ? 's' : ''} ${gaps.length > 1 ? 'have' : 'has'} a competency gap vs their performance score.`)
+        if (gaps.length) items.push({ icon: 'search', text: `${gaps.length} employee${gaps.length > 1 ? 's' : ''} ${gaps.length > 1 ? 'have' : 'has'} a competency gap vs their performance score.` })
         const upcomingTraining = trainingPrograms.filter(p => p.status === 'upcoming')
-        if (upcomingTraining.length) items.push(`📅 ${upcomingTraining.length} training session${upcomingTraining.length > 1 ? 's' : ''} upcoming — encourage staff to register early.`)
+        if (upcomingTraining.length) items.push({ icon: 'calendar', text: `${upcomingTraining.length} training session${upcomingTraining.length > 1 ? 's' : ''} upcoming — encourage staff to register early.` })
         const lowTraining = employees.filter(e => e.training < 85)
-        if (lowTraining.length) items.push(`🎓 ${lowTraining.length} employee${lowTraining.length > 1 ? 's' : ''} ${lowTraining.length > 1 ? 'have' : 'has'} training completion below 85%.`)
-        if (items.length === 0) return <div className="account-msg success" style={{ marginBottom: 16 }}>✅ Everything looks good today — no immediate issues found.</div>
+        if (lowTraining.length) items.push({ icon: 'learning', text: `${lowTraining.length} employee${lowTraining.length > 1 ? 's' : ''} ${lowTraining.length > 1 ? 'have' : 'has'} training completion below 85%.` })
+        if (items.length === 0) return (
+          <div className="account-msg success" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="checkCircle" size={16} /> Everything looks good today — no immediate issues found.
+          </div>
+        )
         return (
           <div style={{ background: 'var(--warning-bg, #fffbeb)', border: '1px solid var(--warning, #f59e0b)', borderRadius: 10, padding: '14px 18px', marginBottom: 18 }}>
             <strong style={{ fontSize: 14 }}>What needs attention today</strong>
-            <ul style={{ margin: '8px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {items.map((item, i) => <li key={i} style={{ fontSize: 13, color: '#92400e' }}>{item}</li>)}
+            <ul style={{ margin: '8px 0 0', paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {items.map((item, i) => (
+                <li key={i} style={{ fontSize: 13, color: '#92400e', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name={item.icon} size={14} /></span>
+                  <span>{item.text}</span>
+                </li>
+              ))}
             </ul>
           </div>
         )
@@ -1981,7 +1994,7 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
               </div>
             ))}
             {employees.every(e => e.performance >= 80) ? (
-              <div className="attention-empty">All employees are performing well 🎉</div>
+              <div className="attention-empty">All employees are performing well.</div>
             ) : null}
           </div>
         </div>
@@ -1992,18 +2005,24 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
             <div className="attention-list">
               {expiringCerts.map((p) => (
                 <div key={`cert-${p.id}`} className="attention-item">
-                  <span className="attention-name">🎓 {p.title} expires {p.expiresOn}</span>
+                  <span className="attention-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Icon name="learning" size={14} /> {p.title} expires {p.expiresOn}
+                  </span>
                   <span className="attention-value">{daysFromNow(p.expiresOn)}d</span>
                 </div>
               ))}
               {reviewsDueSoon.map(({ cycle, pending, daysLeft }) => (
                 <div key={`cycle-${cycle.id}`} className="attention-item">
-                  <span className="attention-name">📝 {cycle.title}: {pending} review(s) pending</span>
+                  <span className="attention-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Icon name="performance" size={14} /> {cycle.title}: {pending} review(s) pending
+                  </span>
                   <span className="attention-value">{daysLeft}d left</span>
                 </div>
               ))}
               {expiringCerts.length === 0 && reviewsDueSoon.length === 0 ? (
-                <div className="attention-empty">Nothing needs attention right now 🎉</div>
+                <div className="attention-empty" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="checkCircle" size={14} /> Nothing needs attention right now
+                </div>
               ) : null}
             </div>
           </div>
@@ -2028,8 +2047,9 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
               {sortedAnnouncements.slice(0, 4).map((ann) => (
                 <div key={ann.id} className={`dashboard-announcement ${ann.pinned ? 'pinned' : ''}`}>
                   <div className="dashboard-announcement-head">
-                    <span className="dashboard-announcement-title">
-                      {ann.pinned ? '📌 ' : ''}{ann.title}
+                    <span className="dashboard-announcement-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {ann.pinned ? <span className="status-badge good" style={{ fontSize: 10 }}>Pinned</span> : null}
+                      {ann.title}
                     </span>
                     <span className="dashboard-announcement-date">{ann.date}</span>
                   </div>
@@ -2301,8 +2321,8 @@ function ReviewsModule({ reviewCycles, reviews, employees, canManage, userName, 
                 </div>
                 <h3 className="program-title">{cycle.title}</h3>
                 <div className="program-meta">
-                  <span>📅 {cycle.periodStart || '—'} → {cycle.periodEnd || '—'}</span>
-                  <span>📝 {cycleAllReviews.length} submission(s)</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="calendar" size={13} /> {cycle.periodStart || '—'} → {cycle.periodEnd || '—'}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="performance" size={13} /> {cycleAllReviews.length} submission(s)</span>
                 </div>
                 <div className="program-actions">
                   <button className="btn-view" onClick={() => { setOpenCycleId(cycle.id); setSelfText(mine ? mine.selfAssessment : '') }}>
@@ -2445,9 +2465,9 @@ function MyTeamModule({ team }) {
               <div key={e.id} className="program-card">
                 <h3 className="program-title">{e.name}</h3>
                 <div className="program-meta">
-                  <span>🏥 {e.role}</span>
-                  <span>🏢 {e.department}</span>
-                  {e.employmentStatus ? <span>📋 {e.employmentStatus}</span> : null}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="performance" size={13} /> {e.role}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="accounts" size={13} /> {e.department}</span>
+                  {e.employmentStatus ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="checkCircle" size={13} /> {e.employmentStatus}</span> : null}
                 </div>
                 <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                   <div className="settings-metric">
@@ -2473,8 +2493,8 @@ function MyTeamModule({ team }) {
                     Top gap: <strong>{topGap.competencyName}</strong> — {topGap.recommendation?.why || 'Development needed'}
                   </div>
                 ) : (
-                  <div style={{ marginTop: 8, fontSize: 12, color: '#065f46', background: '#ecfdf5', borderRadius: 6, padding: '6px 10px' }}>
-                    ✅ No significant competency gaps
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#065f46', background: '#ecfdf5', borderRadius: 6, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Icon name="checkCircle" size={13} /> No significant competency gaps
                   </div>
                 )}
                 {e.competencyNotes ? (
@@ -3665,11 +3685,11 @@ function LearningModule({ trainingPrograms, competencies, employees, registratio
               </div>
               <h3 className="program-title">{prog.title}</h3>
               <div className="program-meta">
-                <span>📅 {prog.date || prog.duration}</span>
-                {prog.instructor ? <span>👩‍🏫 {prog.instructor}</span> : null}
-                {prog.location ? <span>📍 {prog.location}</span> : null}
-                <span>👥 {prog.participants}{prog.seats ? ` / ${prog.seats}` : ''}</span>
-                {prog.cost ? <span>💰 ${prog.cost}</span> : null}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="calendar" size={13} /> {prog.date || prog.duration}</span>
+                {prog.instructor ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="user" size={13} /> {prog.instructor}</span> : null}
+                {prog.location ? <span>Venue: {prog.location}</span> : null}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="accounts" size={13} /> {prog.participants}{prog.seats ? ` / ${prog.seats}` : ''}</span>
+                {prog.cost ? <span>${prog.cost}</span> : null}
               </div>
               {(prog.competencyIds || []).length > 0 ? (
                 <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
@@ -3686,9 +3706,15 @@ function LearningModule({ trainingPrograms, competencies, employees, registratio
                 <span className="program-progress-text">{prog.status === 'completed' ? '100%' : prog.status === 'ongoing' ? '65%' : '0%'}</span>
               </div>
               <div className="program-actions">
-                {canEdit && prog.status !== 'completed' && !registeredIds.has(prog.id) ? (
-                  <button className="btn-register" onClick={() => handleRegister(prog.id)}>Register</button>
-                ) : null}
+                {(() => {
+                  const isFull = prog.seats > 0 && (prog.participants || 0) >= prog.seats
+                  if (canEdit && prog.status !== 'completed' && !registeredIds.has(prog.id)) {
+                    return isFull
+                      ? <span className="status-badge needs-improvement">Full — 0 seats left</span>
+                      : <button className="btn-register" onClick={() => handleRegister(prog.id)}>Register</button>
+                  }
+                  return null
+                })()}
                 {registeredIds.has(prog.id) ? <span className="registered-badge">✓ Registered</span> : null}
                 {canManage && (prog.status === 'ongoing' || prog.status === 'completed') ? (
                   <button className="btn-development" onClick={() => {
@@ -3760,6 +3786,7 @@ function LearningModule({ trainingPrograms, competencies, employees, registratio
           </thead>
           <tbody>
             {upcomingSessions.map((prog) => {
+              const isFull = prog.seats > 0 && (prog.participants || 0) >= prog.seats
               const seatsAvailable = prog.seats ? `${prog.participants} / ${prog.seats}` : `${prog.participants}`
               const isRegistered = registeredIds.has(prog.id)
               return (
@@ -3768,7 +3795,10 @@ function LearningModule({ trainingPrograms, competencies, employees, registratio
                   <td>{prog.date || '—'}</td>
                   <td>{prog.time || '—'}</td>
                   <td>{prog.location || '—'}</td>
-                  <td>{seatsAvailable}</td>
+                  <td>
+                    {seatsAvailable}
+                    {isFull ? <span className="status-badge needs-improvement" style={{ marginLeft: 8 }}>Full</span> : null}
+                  </td>
                   <td>
                     {isRegistered ? (
                       <span className="registered-badge">✓ Registered</span>
@@ -3776,9 +3806,10 @@ function LearningModule({ trainingPrograms, competencies, employees, registratio
                       <button
                         className="btn-register"
                         onClick={() => handleRegister(prog.id)}
-                        disabled={!canEdit}
+                        disabled={!canEdit || isFull}
+                        title={isFull ? 'This program is at full capacity' : undefined}
                       >
-                        Register
+                        {isFull ? 'Full' : 'Register'}
                       </button>
                     )}
                   </td>
@@ -3977,7 +4008,9 @@ function SuccessionModule({ successionCandidates, employees, canEdit, addSuccess
           <span className="succession-stat-value" style={{ color: riskCount > 0 ? '#dc2626' : '#059669' }}>
             <AnimatedNumber value={riskCount} duration={800} />
           </span>
-          <span className="succession-stat-label">⚠️ At Risk (Low)</span>
+          <span className="succession-stat-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+            <Icon name="warn" size={12} /> At Risk (Low)
+          </span>
         </div>
       </div>
 
@@ -4927,13 +4960,16 @@ function AnnouncementsModule({ announcements, canEdit, addAnnouncement, updateAn
         {filtered.map((ann) => (
           <div key={ann.id} className={`announcement-item ${ann.pinned ? 'pinned' : ''}`}>
             <div className="announcement-head">
-              <h3 className="announcement-title">{ann.pinned ? '📌 ' : ''}{ann.title}</h3>
+              <h3 className="announcement-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {ann.pinned ? <span className="status-badge good" style={{ fontSize: 10 }}>Pinned</span> : null}
+                {ann.title}
+              </h3>
               <span className={`announcement-category ${ann.category ? `cat-${ann.category.toLowerCase()}` : ''}`}>{ann.category}</span>
             </div>
             <p className="announcement-body">{ann.body}</p>
             <div className="announcement-meta">
-              <span>👤 {ann.author}</span>
-              <span>📅 {ann.date}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="user" size={12} /> {ann.author}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="calendar" size={12} /> {ann.date}</span>
               {canEdit ? (
                 <div className="action-buttons">
                   <button className="btn-edit" onClick={() => startEdit(ann)}>Edit</button>
