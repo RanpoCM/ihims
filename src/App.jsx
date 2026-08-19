@@ -5606,473 +5606,435 @@ const normalized = otp.trim()
   }
 
 
-const featureCards = [
-    { icon: 'performance', title: 'Performance Analytics', desc: 'Track performance, competency, and training metrics with live charts.' },
-    { icon: 'ai', title: 'AI Competency Engine', desc: 'Evidence-based gap analysis with personalized development roadmaps.' },
-    { icon: 'learning', title: 'Learning & Certifications', desc: 'Manage training programs, enrollments, and professional growth.' },
-    { icon: 'recognition', title: 'Social Recognition', desc: 'Celebrate achievements with awards, likes, and peer recognition.' },
-    { icon: 'succession', title: 'Succession Planning', desc: 'Identify and develop future leaders for key positions.' },
-    { icon: 'shield', title: 'Role-Based Access', desc: 'Secure admin, HR, and staff access with OTP verification.' },
+  const landingModules = [
+    { icon: 'performance', label: 'Performance',    color: '#22c55e' },
+    { icon: 'ai',          label: 'AI Gap Analysis', color: '#16a34a' },
+    { icon: 'learning',    label: 'Learning',        color: '#34d399' },
+    { icon: 'recognition', label: 'Recognition',     color: '#4ade80' },
+    { icon: 'succession',  label: 'Succession',      color: '#15803d' },
+    { icon: 'shield',      label: 'RBAC Security',   color: '#22c55e' },
+    { icon: 'accounts',    label: 'Org Chart',       color: '#34d399' },
+    { icon: 'competency',  label: 'Competency',      color: '#16a34a' },
   ]
 
+  // Shared input style for the dark login card
+  const inputStyle = {
+    background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: 10,
+    padding: '10px 14px',
+    color: '#fff',
+    fontSize: 14,
+    outline: 'none',
+    width: '100%',
+    fontFamily: 'inherit',
+  }
+  const btnPrimary = {
+    background: 'linear-gradient(135deg,#22c55e,#4ade80)',
+    border: 'none', borderRadius: 10, padding: '12px',
+    color: '#fff', fontWeight: 700, fontSize: 14,
+    cursor: 'pointer', width: '100%', fontFamily: 'inherit',
+    boxShadow: '0 4px 12px rgba(34,197,94,0.35)',
+    transition: 'opacity 0.15s',
+  }
+  const btnSecondary = {
+    background: 'none',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: 10, padding: '10px',
+    color: '#94a3b8', fontSize: 13, cursor: 'pointer',
+    width: '100%', fontFamily: 'inherit',
+  }
+  const alertErr = {
+    background: 'rgba(220,38,38,0.12)',
+    border: '1px solid rgba(220,38,38,0.3)',
+    borderRadius: 8, padding: '8px 12px',
+    color: '#fca5a5', fontSize: 13,
+  }
+  const alertInfo = {
+    background: 'rgba(34,197,94,0.1)',
+    border: '1px solid rgba(34,197,94,0.25)',
+    borderRadius: 8, padding: '8px 12px',
+    color: '#86efac', fontSize: 13,
+  }
+
+  // Step indicator data
+  const stepSets = {
+    otp: [{k:'email',l:'Email'},{k:'password',l:'Password'},{k:'otp',l:'Verify'}],
+    default: [{k:'email',l:'Email'},{k:'password',l:'Password'}],
+  }
+  const steps = stage === 'otp' ? stepSets.otp : stepSets.default
+  const stageOrder = {email:0,password:1,otp:2}
+
   return (
-    <div className="landing-shell">
-      {/* Top navigation bar */}
-      <header className="landing-nav">
-<div className="landing-brand">
-          <span className="logo-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-              <path d="M12 4v16M4 12h16" />
+    <div style={{ fontFamily:"'Inter','Segoe UI',system-ui,sans-serif", background:'#f6faf7', minHeight:'100vh' }}>
+
+      {/* ── NAV ─────────────────────────────────────────── */}
+      <nav style={{
+        position:'sticky', top:0, zIndex:100,
+        background:'#052e16',
+        borderBottom:'1px solid rgba(255,255,255,0.06)',
+        display:'flex', alignItems:'center', justifyContent:'space-between',
+        padding:'0 48px', height:64,
+        boxShadow:'0 2px 12px rgba(0,0,0,0.3)',
+      }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{
+            width:38, height:38, borderRadius:10,
+            background:'linear-gradient(135deg,#22c55e,#4ade80)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            boxShadow:'0 4px 10px rgba(34,197,94,0.35)',
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M12 4v16M4 12h16"/>
             </svg>
-          </span>
-          <div className="logo-text">
-            <span className="hospital-name">AI-Driven HRMS</span>
-            <span className="hospital-tagline">Competency Gap Analysis</span>
+          </div>
+          <div>
+            <div style={{ color:'#fff', fontWeight:700, fontSize:16, letterSpacing:'-0.01em', lineHeight:1 }}>IHIMS</div>
+            <div style={{ color:'#4ade80', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>Hospital HR System</div>
           </div>
         </div>
-        <div className="landing-nav-links">
-          <a href="#features">Features</a>
-          <a href="#about">About</a>
-          <a href="mailto:admin@ihims.local">Contact</a>
-        </div>
-      </header>
-
-      <div className="landing-hero">
-        {/* Left column: hero copy */}
-        <div className="landing-hero-left">
-          <span className="landing-badge">✦ Intelligent HR Management</span>
-          <h1 className="landing-title">
-            Empower your team.<br />
-            <span className="landing-title-accent">Close the competency gap.</span>
-          </h1>
-          <p className="landing-subtitle">
-            IHIMS is an AI-driven Human Resource Management System that blends performance analytics,
-            competency gap analysis, learning, succession planning, and recognition into one unified platform.
-          </p>
-
-          <div className="landing-stats">
-            <div className="landing-stat">
-              <span className="landing-stat-num"><AnimatedNumber value={8} duration={900} /></span>
-              <span className="landing-stat-label">Staff Modules</span>
-            </div>
-            <div className="landing-stat">
-              <span className="landing-stat-num"><AnimatedNumber value={100} suffix="%" duration={900} /></span>
-              <span className="landing-stat-label">Data-Self Contained</span>
-            </div>
-            <div className="landing-stat">
-              <span className="landing-stat-num"><AnimatedNumber value={3} duration={900} /></span>
-              <span className="landing-stat-label">Role Levels</span>
-            </div>
-          </div>
-
-          <ul className="landing-check-list">
-            <li>Real-time dashboards & animated charts</li>
-            <li>AI-powered competency & readiness insights</li>
-            <li>Secure OTP-protected login with RBAC</li>
-          </ul>
-        </div>
-
-        {/* Right column: login card */}
-        <div className="landing-login-wrap">
-          <div className="login-card">
-<div className="login-card-head">
-              <span className="login-card-icon"><Icon name="shield" size={26} /></span>
-              <h1 className="login-title">
-                {stage === 'otp' ? 'Verify Code' : stage === 'password' ? 'Enter Password' : 'Welcome Back'}
-              </h1>
-<p className="login-subtitle">
-                {stage === 'otp'
-                  ? `Enter the verification code sent to ${pendingEmail}.`
-                  : stage === 'password'
-                  ? `Hello, ${pendingAccount?.name || pendingEmail}. Enter your password to continue.`
-                  : 'Sign in with your email address to get started.'}
-              </p>
-            </div>
-
-            {/* Step indicator */}
-            {stage !== 'register' ? (
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '10px 0 4px' }}>
-                {(stage === 'otp'
-                  ? [
-                    { key: 'email', label: '1. Email' },
-                    { key: 'password', label: '2. Password' },
-                    { key: 'otp', label: '3. Verify OTP' },
-                  ]
-                  : [
-                    { key: 'email', label: '1. Email' },
-                    { key: 'password', label: '2. Password' },
-                  ]
-                ).map((step, i, arr) => {
-                  const stageOrder = { email: 0, password: 1, otp: 2 }
-                  const current = stageOrder[stage] ?? 0
-                  const isDone = stageOrder[step.key] < current
-                  const isActive = step.key === stage
-                  return (
-                    <div key={step.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <div style={{
-                        width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 11, fontWeight: 700,
-                        background: isDone ? '#22c55e' : isActive ? 'var(--primary, #3b82f6)' : '#e5e7eb',
-                        color: isDone || isActive ? '#fff' : '#9ca3af',
-                      }}>
-                        {isDone ? '✓' : i + 1}
-                      </div>
-                      <span style={{ fontSize: 11, color: isActive ? 'var(--primary, #3b82f6)' : isDone ? '#22c55e' : '#9ca3af', fontWeight: isActive ? 700 : 400 }}>
-                        {step.label}
-                      </span>
-                      {i < arr.length - 1 ? <div style={{ width: 20, height: 1, background: isDone ? '#22c55e' : '#e5e7eb' }} /> : null}
-                    </div>
-                  )
-                })}
-              </div>
-            ) : null}
-
-{stage === 'register' && !hasExistingAdmin ? (
-              <form onSubmit={handleRegisterSubmit} className="login-form">
-                <label className="login-field">
-                  <span>Your email</span>
-                  <input
-                    type="email"
-                    placeholder="you@gmail.com"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    required
-                  />
-                </label>
-                <label className="login-field">
-                  <span>Display name</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Jane Smith"
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                  />
-                </label>
-                <label className="login-field">
-                  <span>Password</span>
-                  <input
-                    type="password"
-                    placeholder="At least 6 characters"
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    minLength="6"
-                    required
-                  />
-                </label>
-
-                {error ? <div className="login-error">{error}</div> : null}
-                {info ? <div className="login-info">{info}</div> : null}
-
-                <button type="submit" className="btn-save login-submit" disabled={busy}>
-                  {busy ? 'Creating…' : 'Set up Admin Account'}
-                </button>
-
-                <div className="login-form-actions">
-                  <button
-                    type="button"
-                    className="btn-cancel"
-                    onClick={() => {
-                      setStage('email')
-                      setError('')
-                      setInfo('')
-                    }}
-                  >
-                    ← Back to Sign In
-                  </button>
-                </div>
-              </form>
-            ) : stage === 'email' ? (
-              <form onSubmit={handleEmailSubmit} className="login-form">
-                <label className="login-field">
-                  <span>Email or Username</span>
-                  <input
-                    type="text"
-                    placeholder="you@ihims.local"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoFocus
-                  />
-                </label>
-
-                {error ? <div className="login-error">{error}</div> : null}
-                {info ? <div className="login-info">{info}</div> : null}
-
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text-secondary, #6b7280)', marginTop: 4 }}>
-                  <input
-                    type="checkbox"
-                    checked={acceptedTerms}
-                    onChange={(e) => setAcceptedTerms(e.target.checked)}
-                    style={{ marginTop: 2, flexShrink: 0 }}
-                  />
-                  <span>
-                    I have read and agree to the{' '}
-                    <button type="button" className="login-link-btn" onClick={() => { setTermsTab('toa'); setShowTerms(true) }}>
-                      Terms of Access
-                    </button>
-                    {' '}and{' '}
-                    <button type="button" className="login-link-btn" onClick={() => { setTermsTab('eula'); setShowTerms(true) }}>
-                      End-User License Agreement
-                    </button>
-                  </span>
-                </label>
-
-                <button type="submit" className="btn-save login-submit" disabled={busy || !acceptedTerms}>
-                  {busy ? 'Checking…' : 'Continue →'}
-                </button>
-              </form>
-
-            ) : stage === 'password' ? (
-              <form onSubmit={handlePasswordSubmit} className="login-form">
-                <label className="login-field">
-                  <span>Password</span>
-                  <input
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    autoFocus
-                  />
-                </label>
-
-                {error ? <div className="login-error">{error}</div> : null}
-                {info ? <div className="login-info">{info}</div> : null}
-
-                <button type="submit" className="btn-save login-submit" disabled={busy}>
-                  {busy ? 'Verifying…' : 'Verify Password →'}
-                </button>
-
-                <div className="login-form-actions">
-                  <button
-                    type="button"
-                    className="btn-cancel"
-                    onClick={() => {
-                      setStage('email')
-                      setPassword('')
-                      setPendingEmail(null)
-                      setPendingAccount(null)
-                      setError('')
-                      setInfo('')
-                    }}
-                  >
-                    ← Back
-                  </button>
-                </div>
-              </form>
-
-            ) : (
-<form onSubmit={handleOtpSubmit} className="login-form">
-                {demoMode && demoOtp ? (
-                  <div className="login-demo-code">
-                    <span className="login-demo-label">Demo verification code</span>
-                    <span className="login-demo-value">{demoOtp}</span>
-                  </div>
-                ) : null}
-<label className="login-field">
-                  <span>Verification code</span>
-                  <input
-                    type="text"
-                    placeholder="••••••"
-value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                    inputMode="numeric"
-                    pattern="[0-9]{6,8}"
-                    maxLength="8"
-                    required
-                  />
-                </label>
-
-                {info ? <div className="login-info">{info}</div> : null}
-                {error ? <div className="login-error">{error}</div> : null}
-
-                <button type="submit" className="btn-save login-submit" disabled={busy}>
-                  {busy ? 'Verifying…' : 'Confirm Code'}
-                </button>
-
-                <div className="login-form-actions">
-                  <button type="button" className="btn-cancel" onClick={resendOtp} disabled={busy}>Resend Code</button>
-                  <button
-                    type="button"
-                    className="btn-cancel"
-                    onClick={() => {
-                      setStage('password')
-                      setError('')
-                      setInfo('')
-                      setOtp('')
-                    }}
-                  >
-                    ← Back
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Features section */}
-      <section className="landing-features" id="features">
-        <h2 className="landing-section-title">Everything your HR team needs</h2>
-        <p className="landing-section-sub">One intelligent platform for workforce development and engagement.</p>
-        <div className="landing-features-grid">
-{featureCards.map((f, i) => (
-            <div className="landing-feature-card" key={f.title} style={{ animationDelay: `${i * 80}ms` }}>
-              <span className="landing-feature-icon"><Icon name={f.icon} size={30} /></span>
-              <h3>{f.title}</h3>
-              <p>{f.desc}</p>
-            </div>
+        <div style={{ display:'flex', alignItems:'center', gap:28 }}>
+          {['Features','About'].map((l) => (
+            <a key={l} href={`#${l.toLowerCase()}`}
+              style={{ color:'#86efac', fontSize:13, textDecoration:'none', fontWeight:500 }}
+              onMouseEnter={e=>e.target.style.color='#fff'}
+              onMouseLeave={e=>e.target.style.color='#86efac'}
+            >{l}</a>
           ))}
+          <a href="mailto:admin@ihims.local" style={{ color:'#86efac', fontSize:13, textDecoration:'none', fontWeight:500 }}
+            onMouseEnter={e=>e.target.style.color='#fff'} onMouseLeave={e=>e.target.style.color='#86efac'}>Contact</a>
         </div>
-      </section>
+      </nav>
 
-      {/* About / footer */}
-      <footer className="landing-footer" id="about">
-        <p>
-          <strong>IHIMS</strong> — AI-Driven Human Resource Management System. Built for modern, data-driven healthcare teams.
-        </p>
-        <p className="landing-footer-meta">© {new Date().getFullYear()} IHIMS • Competency Gap Analysis Platform</p>
-        <p style={{ marginTop: 8, fontSize: 12 }}>
-          <button type="button" className="login-link-btn" onClick={() => { setTermsTab('toa'); setShowTerms(true) }}>Terms of Access</button>
-          {' · '}
-          <button type="button" className="login-link-btn" onClick={() => { setTermsTab('eula'); setShowTerms(true) }}>End-User License Agreement</button>
-        </p>
-      </footer>
+      {/* ── HERO ─────────────────────────────────────────── */}
+      <section style={{
+        background:'linear-gradient(160deg,#052e16 0%,#14532d 55%,#052e16 100%)',
+        padding:'80px 48px 100px',
+      }}>
+        <div style={{ maxWidth:1200, margin:'0 auto', display:'grid', gridTemplateColumns:'1fr 420px', gap:64, alignItems:'center' }}>
 
-      {showTerms && (
-        <div className="modal-overlay" onClick={() => setShowTerms(false)}>
-          <div className="modal" style={{ maxWidth: 700, width: '94vw', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Legal Agreements</h3>
-              <button className="modal-close" onClick={() => setShowTerms(false)} aria-label="Close">&times;</button>
+          {/* Left — copy */}
+          <div>
+            <div style={{
+              display:'inline-flex', alignItems:'center', gap:8,
+              background:'rgba(34,197,94,0.12)', border:'1px solid rgba(34,197,94,0.3)',
+              borderRadius:999, padding:'5px 14px', marginBottom:28,
+            }}>
+              <div style={{ width:6, height:6, borderRadius:'50%', background:'#22c55e' }}/>
+              <span style={{ color:'#4ade80', fontSize:12, fontWeight:600, letterSpacing:'0.04em' }}>AI-Driven · Philippine Healthcare</span>
             </div>
 
-            {/* Tabs */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border, #e5e7eb)', padding: '0 24px' }}>
-              {[{ id: 'toa', label: 'Terms of Access' }, { id: 'eula', label: 'End-User License Agreement' }].map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTermsTab(t.id)}
-                  style={{
-                    padding: '10px 18px',
-                    border: 'none',
-                    background: 'none',
-                    cursor: 'pointer',
-                    fontWeight: termsTab === t.id ? 700 : 400,
-                    borderBottom: termsTab === t.id ? '2px solid var(--primary, #3b82f6)' : '2px solid transparent',
-                    color: termsTab === t.id ? 'var(--primary, #3b82f6)' : 'inherit',
-                    fontSize: 14,
-                  }}
-                >
-                  {t.label}
-                </button>
+            <h1 style={{ color:'#fff', fontSize:52, fontWeight:800, lineHeight:1.08, letterSpacing:'-0.03em', margin:'0 0 20px' }}>
+              Close the{' '}
+              <span style={{ background:'linear-gradient(90deg,#22c55e,#4ade80)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+                competency gap
+              </span>
+              <br/>in your hospital.
+            </h1>
+
+            <p style={{ color:'#86efac', fontSize:17, lineHeight:1.75, margin:'0 0 40px', maxWidth:480, opacity:0.85 }}>
+              IHIMS gives HR teams, department heads, and staff a unified platform to track performance,
+              identify skill gaps using AI, manage training, and develop the next generation of healthcare leaders.
+            </p>
+
+            {/* Stats row */}
+            <div style={{ display:'flex', gap:40, marginBottom:44 }}>
+              {[{num:'6',label:'Core Modules'},{num:'3',label:'Role Levels'},{num:'AI',label:'Gap Analysis'},{num:'RA 10173',label:'Compliant'}].map((s) => (
+                <div key={s.label}>
+                  <div style={{ color:'#fff', fontSize:26, fontWeight:800, letterSpacing:'-0.03em', lineHeight:1 }}>{s.num}</div>
+                  <div style={{ color:'#4ade80', fontSize:12, marginTop:4, opacity:0.7 }}>{s.label}</div>
+                </div>
               ))}
             </div>
 
-            <div className="modal-body" style={{ overflowY: 'auto', flex: 1, fontSize: 13, lineHeight: 1.7 }}>
-              {termsTab === 'toa' ? (
-                <div>
-                  <h2 style={{ fontSize: 16, marginBottom: 4 }}>Terms of Access</h2>
-                  <p style={{ color: '#6b7280', marginBottom: 16 }}>Effective Date: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} · IHIMS — Integrated Hospital Information Management System</p>
-
-                  <h4>1. System Overview</h4>
-                  <p>The Integrated Hospital Information Management System (IHIMS) is a web-based platform developed for use by authorised personnel of small to medium-sized healthcare institutions in the Philippines. The system supports workforce management, employee performance monitoring, competency gap analysis, learning and training management, succession planning, and social recognition. It is developed as an academic capstone project by students of Bestlink College of the Philippines.</p>
-
-                  <h4>2. Authorised Users</h4>
-                  <p>Access to IHIMS is strictly limited to individuals whose accounts have been created and authorised by a system administrator of the subscribing healthcare institution. Roles include Hospital Administrator, Human Resource Personnel, Training Officer, and Department Head/Staff. Unauthorised access, sharing of credentials, or use of another person's account is strictly prohibited.</p>
-
-                  <h4>3. Acceptable Use</h4>
-                  <p>Authorised users agree to use IHIMS solely for legitimate workforce management and human resource development purposes within their healthcare institution. You must not:</p>
-                  <ul>
-                    <li>Use the system to access, modify, or delete records of employees outside your authorised scope.</li>
-                    <li>Attempt to circumvent role-based access controls or exploit system vulnerabilities.</li>
-                    <li>Use the system for any purpose that violates Philippine law, including the Data Privacy Act of 2012 (Republic Act No. 10173).</li>
-                    <li>Share, copy, export, or distribute employee data outside the institution without proper authorisation.</li>
-                    <li>Use AI-generated competency gap analysis results as the sole basis for employment decisions such as hiring, promotion, or termination.</li>
-                  </ul>
-
-                  <h4>4. Data Privacy and Confidentiality</h4>
-                  <p>Employee records stored in IHIMS, including performance evaluations, competency assessments, training history, and development plans, constitute personal data under the Data Privacy Act of 2012. All authorised users are responsible for handling this data in accordance with applicable Philippine privacy regulations. Data must not be disclosed to unauthorised parties. The system stores data locally within the institution's environment and does not transmit personally identifiable information to external servers without explicit institutional consent.</p>
-
-                  <h4>5. AI Decision-Support Limitation</h4>
-                  <p>The AI-Assisted Competency Gap Analysis feature is a decision-support tool only. It is designed to provide insights and recommendations to assist human resource personnel and hospital administrators in their professional judgement. IHIMS does not independently determine, nor does it recommend that any user independently determine, employment decisions such as promotion, demotion, termination, or disciplinary action based solely on system-generated outputs. All employment decisions must involve qualified HR professionals and comply with applicable labour laws of the Philippines.</p>
-
-                  <h4>6. System Availability</h4>
-                  <p>IHIMS is provided as-is, as an academic capstone project. The development team does not guarantee uninterrupted availability or error-free operation. Institutions deploying the system are responsible for maintaining their own data backups and ensuring appropriate IT infrastructure. The development team shall not be liable for any data loss, system downtime, or operational disruption arising from use of the system.</p>
-
-                  <h4>7. Account Security</h4>
-                  <p>Each user is responsible for maintaining the confidentiality of their login credentials. Users must immediately notify their system administrator if they suspect unauthorised access to their account. The system uses one-time password (OTP) verification to authenticate user sessions. Sharing OTP codes with other individuals is prohibited.</p>
-
-                  <h4>8. Modifications to Terms</h4>
-                  <p>The institution's system administrator or the development team may update these Terms of Access as necessary. Continued use of IHIMS following notification of changes constitutes acceptance of the revised terms.</p>
-
-                  <h4>9. Governing Law</h4>
-                  <p>These Terms of Access are governed by the laws of the Republic of the Philippines, including but not limited to the Data Privacy Act of 2012 (RA 10173), the Labor Code of the Philippines, and applicable regulations of the Department of Health (DOH) and the Professional Regulation Commission (PRC).</p>
+            {/* Module pills */}
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+              {landingModules.map((m) => (
+                <div key={m.label} style={{
+                  display:'inline-flex', alignItems:'center', gap:6,
+                  background:'rgba(34,197,94,0.08)', border:'1px solid rgba(34,197,94,0.18)',
+                  borderRadius:999, padding:'5px 12px',
+                }}>
+                  <div style={{ width:6, height:6, borderRadius:'50%', background:m.color }}/>
+                  <span style={{ color:'#86efac', fontSize:12 }}>{m.label}</span>
                 </div>
-              ) : (
+              ))}
+            </div>
+          </div>
+
+          {/* Right — Login card */}
+          <div style={{
+            background:'rgba(5,46,22,0.7)', border:'1px solid rgba(34,197,94,0.2)',
+            borderRadius:20, padding:32,
+            backdropFilter:'blur(20px)',
+            boxShadow:'0 25px 50px rgba(0,0,0,0.4), 0 0 0 1px rgba(34,197,94,0.08)',
+          }}>
+            {/* Card header */}
+            <div style={{ marginBottom:24 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+                <div style={{ width:38, height:38, borderRadius:10, background:'linear-gradient(135deg,#22c55e,#4ade80)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 10px rgba(34,197,94,0.35)' }}>
+                  <Icon name="shield" size={18}/>
+                </div>
                 <div>
-                  <h2 style={{ fontSize: 16, marginBottom: 4 }}>End-User License Agreement (EULA)</h2>
-                  <p style={{ color: '#6b7280', marginBottom: 16 }}>Effective Date: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} · IHIMS — Integrated Hospital Information Management System</p>
+                  <div style={{ color:'#fff', fontWeight:700, fontSize:16, lineHeight:1.2 }}>
+                    {stage==='otp' ? 'Verify your identity' : stage==='password' ? 'Welcome back' : 'Sign in to IHIMS'}
+                  </div>
+                  <div style={{ color:'#4ade80', fontSize:12, opacity:0.75, marginTop:2 }}>
+                    {stage==='otp' ? `Code sent to ${pendingEmail}` : stage==='password' ? (pendingAccount?.name||pendingEmail) : 'Authorised personnel only'}
+                  </div>
+                </div>
+              </div>
 
-                  <h4>1. Grant of License</h4>
-                  <p>The development team of the Integrated Hospital Information Management System (IHIMS), students of Bestlink College of the Philippines, grants to the subscribing healthcare institution a limited, non-exclusive, non-transferable, revocable license to install, access, and use IHIMS solely for the institution's internal human resource management and workforce development purposes. This license does not convey ownership of the software or any intellectual property rights therein.</p>
-
-                  <h4>2. Intellectual Property</h4>
-                  <p>IHIMS, including its source code, design, algorithms, AI-Assisted Competency Gap Analysis engine, user interface, documentation, and all related components, is the intellectual property of its development team and Bestlink College of the Philippines. All rights not expressly granted under this Agreement are reserved. You may not copy, modify, distribute, sell, sublicense, reverse-engineer, or create derivative works of IHIMS or any of its components without prior written consent from the development team.</p>
-
-                  <h4>3. Scope of Use</h4>
-                  <p>The license granted herein is limited to use within the subscribing institution by authorised personnel only. The system may not be:</p>
-                  <ul>
-                    <li>Installed or deployed for use by any third party or external organisation without a separate written agreement.</li>
-                    <li>Used for commercial resale, redistribution, or provision of services to other institutions.</li>
-                    <li>Modified, adapted, or extended without express written permission from the development team.</li>
-                    <li>Used in a manner inconsistent with its intended purpose as a hospital HR management and competency gap analysis platform.</li>
-                  </ul>
-
-                  <h4>4. Data Ownership</h4>
-                  <p>All employee data, performance records, competency assessments, training histories, and related information entered into IHIMS remain the sole property of the subscribing healthcare institution. The development team claims no ownership over institutional data stored within the system. The institution is solely responsible for the accuracy, legality, and security of data entered into IHIMS.</p>
-
-                  <h4>5. AI Feature Disclaimer</h4>
-                  <p>The AI-Assisted Competency Gap Analysis feature uses computational models to analyse workforce data and generate development recommendations. These outputs are for informational and decision-support purposes only. The development team makes no warranty, express or implied, regarding the accuracy, completeness, or fitness for a particular purpose of AI-generated insights. The institution and its authorised HR professionals bear full responsibility for all employment and workforce development decisions.</p>
-
-                  <h4>6. No Warranty</h4>
-                  <p>IHIMS is provided "as is" and "as available," without warranty of any kind, express or implied. The development team does not warrant that the system will be uninterrupted, error-free, secure, or free of viruses or other harmful components. The institution assumes all risks associated with the use of IHIMS and is responsible for implementing appropriate data backup, security, and contingency measures.</p>
-
-                  <h4>7. Limitation of Liability</h4>
-                  <p>To the fullest extent permitted by applicable Philippine law, the development team and Bestlink College of the Philippines shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, loss of business, or reputational harm, arising from the use or inability to use IHIMS, even if advised of the possibility of such damages.</p>
-
-                  <h4>8. Termination</h4>
-                  <p>This license is effective until terminated. The development team may terminate this license immediately upon written notice if the institution breaches any provision of this Agreement. Upon termination, the institution must cease all use of IHIMS and destroy all copies of the software in its possession. Provisions relating to intellectual property, data ownership, liability, and governing law shall survive termination.</p>
-
-                  <h4>9. Updates and Modifications</h4>
-                  <p>The development team reserves the right to update, modify, or discontinue IHIMS at any time without prior notice. Any updates provided to the institution shall be subject to the terms of this Agreement unless accompanied by a separate license agreement.</p>
-
-                  <h4>10. Entire Agreement</h4>
-                  <p>This End-User License Agreement, together with the Terms of Access, constitutes the entire agreement between the institution and the development team with respect to IHIMS and supersedes all prior discussions, representations, and agreements. This Agreement is governed by the laws of the Republic of the Philippines.</p>
-
-                  <h4>11. Contact</h4>
-                  <p>For questions regarding this Agreement, please contact the IHIMS development team through Bestlink College of the Philippines.</p>
+              {/* Step indicator */}
+              {stage !== 'register' && (
+                <div style={{ display:'flex', alignItems:'center', marginTop:16 }}>
+                  {steps.map((step, i) => {
+                    const cur = stageOrder[stage]??0
+                    const done = stageOrder[step.k] < cur
+                    const active = step.k === stage
+                    return (
+                      <div key={step.k} style={{ display:'flex', alignItems:'center', flex: i<steps.length-1 ? 1 : 'none' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                          <div style={{
+                            width:22, height:22, borderRadius:'50%', flexShrink:0,
+                            display:'flex', alignItems:'center', justifyContent:'center',
+                            fontSize:10, fontWeight:700,
+                            background: done?'#22c55e' : active?'linear-gradient(135deg,#22c55e,#4ade80)' : 'rgba(255,255,255,0.08)',
+                            color: done||active ? '#fff' : '#4ade80',
+                            boxShadow: active ? '0 0 0 3px rgba(34,197,94,0.25)' : 'none',
+                          }}>{done?'✓':i+1}</div>
+                          <span style={{ fontSize:11, color:active?'#4ade80':done?'#22c55e':'#4ade8066', fontWeight:active?700:400 }}>{step.l}</span>
+                        </div>
+                        {i<steps.length-1 && <div style={{ flex:1, height:1, background:done?'#22c55e':'rgba(255,255,255,0.08)', margin:'0 8px' }}/>}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
 
-            <div className="modal-footer" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={acceptedTerms}
-                  onChange={(e) => setAcceptedTerms(e.target.checked)}
-                />
+            {/* ── FORMS ── */}
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+
+              {/* Register */}
+              {stage==='register' && !hasExistingAdmin ? (
+                <form onSubmit={handleRegisterSubmit} style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  {[{label:'Your email',type:'email',val:regEmail,set:setRegEmail,ph:'you@gmail.com',req:true},
+                    {label:'Display name',type:'text',val:regName,set:setRegName,ph:'e.g. Jane Smith',req:false},
+                    {label:'Password',type:'password',val:regPassword,set:setRegPassword,ph:'At least 6 characters',req:true}
+                  ].map((f) => (
+                    <label key={f.label} style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                      <span style={{ color:'#86efac', fontSize:12, fontWeight:500 }}>{f.label}</span>
+                      <input type={f.type} placeholder={f.ph} value={f.val} onChange={(e)=>f.set(e.target.value)} required={f.req} style={inputStyle}/>
+                    </label>
+                  ))}
+                  {error ? <div style={alertErr}>{error}</div> : null}
+                  {info  ? <div style={alertInfo}>{info}</div>  : null}
+                  <button type="submit" disabled={busy} style={{ ...btnPrimary, opacity:busy?0.7:1 }}>{busy?'Creating…':'Set up Admin Account'}</button>
+                  <button type="button" onClick={()=>{setStage('email');setError('');setInfo('')}} style={btnSecondary}>← Back to Sign In</button>
+                </form>
+
+              /* Email stage */
+              ) : stage==='email' ? (
+                <form onSubmit={handleEmailSubmit} style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                    <span style={{ color:'#86efac', fontSize:12, fontWeight:500 }}>Email or Username</span>
+                    <input type="text" placeholder="you@hospital.com.ph" value={email} onChange={(e)=>setEmail(e.target.value)} required autoFocus style={inputStyle}/>
+                  </label>
+                  {error ? <div style={alertErr}>{error}</div> : null}
+                  <label style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer' }}>
+                    <input type="checkbox" checked={acceptedTerms} onChange={(e)=>setAcceptedTerms(e.target.checked)} style={{ marginTop:2, flexShrink:0, accentColor:'#22c55e' }}/>
+                    <span style={{ color:'#4ade80', fontSize:12, lineHeight:1.5, opacity:0.8 }}>
+                      I agree to the{' '}
+                      <button type="button" onClick={()=>{setTermsTab('toa');setShowTerms(true)}} style={{ background:'none', border:'none', color:'#22c55e', cursor:'pointer', fontSize:12, padding:0, textDecoration:'underline', fontFamily:'inherit' }}>Terms of Access</button>
+                      {' '}and{' '}
+                      <button type="button" onClick={()=>{setTermsTab('eula');setShowTerms(true)}} style={{ background:'none', border:'none', color:'#22c55e', cursor:'pointer', fontSize:12, padding:0, textDecoration:'underline', fontFamily:'inherit' }}>EULA</button>
+                    </span>
+                  </label>
+                  <button type="submit" disabled={busy||!acceptedTerms} style={{ ...btnPrimary, opacity:(!acceptedTerms||busy)?0.45:1, cursor:(!acceptedTerms||busy)?'not-allowed':'pointer' }}>{busy?'Checking…':'Continue →'}</button>
+                  {!hasExistingAdmin && (
+                    <button type="button" onClick={()=>setStage('register')} style={btnSecondary}>First time? Set up admin account →</button>
+                  )}
+                </form>
+
+              /* Password stage */
+              ) : stage==='password' ? (
+                <form onSubmit={handlePasswordSubmit} style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                    <span style={{ color:'#86efac', fontSize:12, fontWeight:500 }}>Password</span>
+                    <input type="password" placeholder="Enter your password" value={password} onChange={(e)=>setPassword(e.target.value)} required autoFocus style={inputStyle}/>
+                  </label>
+                  {error ? <div style={alertErr}>{error}</div> : null}
+                  {info  ? <div style={alertInfo}>{info}</div>  : null}
+                  <button type="submit" disabled={busy} style={{ ...btnPrimary, opacity:busy?0.7:1 }}>{busy?'Verifying…':'Verify Password →'}</button>
+                  <button type="button" onClick={()=>{setStage('email');setPassword('');setPendingEmail(null);setPendingAccount(null);setError('');setInfo('')}} style={btnSecondary}>← Back</button>
+                </form>
+
+              /* OTP stage */
+              ) : (
+                <form onSubmit={handleOtpSubmit} style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  {demoMode && demoOtp ? (
+                    <div style={{ background:'rgba(34,197,94,0.08)', border:'1px solid rgba(34,197,94,0.25)', borderRadius:10, padding:'12px 16px', textAlign:'center' }}>
+                      <div style={{ color:'#4ade80', fontSize:11, marginBottom:6, letterSpacing:'0.05em', textTransform:'uppercase' }}>Demo verification code</div>
+                      <div style={{ color:'#22c55e', fontSize:30, fontWeight:800, letterSpacing:'0.18em', fontVariantNumeric:'tabular-nums' }}>{demoOtp}</div>
+                    </div>
+                  ) : null}
+                  <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                    <span style={{ color:'#86efac', fontSize:12, fontWeight:500 }}>6-digit verification code</span>
+                    <input type="text" placeholder="••••••" value={otp}
+                      onChange={(e)=>setOtp(e.target.value.replace(/\D/g,'').slice(0,8))}
+                      inputMode="numeric" pattern="[0-9]{6,8}" maxLength="8" required autoFocus
+                      style={{ ...inputStyle, fontSize:24, letterSpacing:'0.22em', fontVariantNumeric:'tabular-nums', textAlign:'center' }}/>
+                  </label>
+                  {info  ? <div style={alertInfo}>{info}</div>  : null}
+                  {error ? <div style={alertErr}>{error}</div> : null}
+                  <button type="submit" disabled={busy} style={{ ...btnPrimary, opacity:busy?0.7:1 }}>{busy?'Verifying…':'Confirm Code'}</button>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <button type="button" onClick={resendOtp} disabled={busy} style={{ ...btnSecondary, flex:1 }}>Resend Code</button>
+                    <button type="button" onClick={()=>{setStage('password');setError('');setInfo('');setOtp('')}} style={{ ...btnSecondary, flex:1 }}>← Back</button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Trust notice */}
+            <div style={{ marginTop:16, padding:'10px 14px', background:'rgba(34,197,94,0.06)', border:'1px solid rgba(34,197,94,0.15)', borderRadius:8, display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontSize:15 }}>🔒</span>
+              <span style={{ color:'#4ade80', fontSize:11, lineHeight:1.5, opacity:0.8 }}>
+                After OTP verification, this device is trusted for 7 days — password only on next login.
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FEATURES ─────────────────────────────────────── */}
+      <section id="features" style={{ background:'#fff', padding:'96px 48px' }}>
+        <div style={{ maxWidth:1100, margin:'0 auto' }}>
+          <div style={{ textAlign:'center', marginBottom:56 }}>
+            <div style={{ display:'inline-block', background:'#ecfdf5', borderRadius:999, padding:'4px 14px', color:'#16a34a', fontSize:12, fontWeight:700, marginBottom:14, letterSpacing:'0.05em', textTransform:'uppercase' }}>Capabilities</div>
+            <h2 style={{ fontSize:36, fontWeight:800, color:'#0f172a', letterSpacing:'-0.02em', margin:'0 0 14px' }}>Everything your HR team needs</h2>
+            <p style={{ color:'#475569', fontSize:16, maxWidth:520, margin:'0 auto' }}>One integrated platform for workforce development, competency management, and employee engagement.</p>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:24 }}>
+            {[
+              {icon:'performance',title:'Performance Analytics',desc:'Real-time dashboards tracking performance, competency, and training scores across all departments.',bg:'#f0fdf4',accent:'#22c55e'},
+              {icon:'ai',title:'AI Competency Engine',desc:'Evidence-based gap analysis generates personalized development roadmaps per employee and role.',bg:'#ecfdf5',accent:'#16a34a'},
+              {icon:'learning',title:'Learning & Training',desc:'Manage programs, track enrollments, and link certifications directly to identified competency gaps.',bg:'#f0fdf4',accent:'#34d399'},
+              {icon:'recognition',title:'Social Recognition',desc:'Award excellence and enable peer shout-outs to build a culture of appreciation across teams.',bg:'#ecfdf5',accent:'#22c55e'},
+              {icon:'succession',title:'Succession Planning',desc:'Identify and develop future leaders with AI-scored promotion readiness and talent pool tracking.',bg:'#f0fdf4',accent:'#15803d'},
+              {icon:'shield',title:'Secure by Design',desc:'Password + OTP, 7-day device trust, role-based access, audit logging — RA 10173 compliant.',bg:'#ecfdf5',accent:'#16a34a'},
+            ].map((f) => (
+              <div key={f.title}
+                style={{ background:'#f8fafc', border:'1px solid #dcefe2', borderRadius:16, padding:28, transition:'all 0.2s', cursor:'default' }}
+                onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 6px 24px rgba(34,197,94,0.12)';e.currentTarget.style.borderColor='#4ade80'}}
+                onMouseLeave={e=>{e.currentTarget.style.boxShadow='none';e.currentTarget.style.borderColor='#dcefe2'}}
+              >
+                <div style={{ width:46, height:46, borderRadius:12, background:f.bg, border:`1px solid ${f.accent}33`, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:16, color:f.accent }}>
+                  <Icon name={f.icon} size={22}/>
+                </div>
+                <h3 style={{ fontSize:15, fontWeight:700, color:'#0f172a', margin:'0 0 8px', letterSpacing:'-0.01em' }}>{f.title}</h3>
+                <p style={{ fontSize:13, color:'#64748b', lineHeight:1.65, margin:0 }}>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── COMPLIANCE STRIP ─────────────────────────────── */}
+      <section style={{ background:'#052e16', padding:'40px 48px', display:'flex', justifyContent:'center', gap:60, flexWrap:'wrap', borderTop:'1px solid rgba(34,197,94,0.15)' }}>
+        {[
+          {label:'RA 10173 Compliant',sub:'Data Privacy Act'},
+          {label:'DOH-Aligned',sub:'Healthcare Standards'},
+          {label:'PRC-Ready',sub:'License Record Fields'},
+          {label:'Audit Logged',sub:'Every Action Tracked'},
+          {label:'7-Day Device Trust',sub:'Secure Auth Flow'},
+        ].map((t) => (
+          <div key={t.label} style={{ textAlign:'center' }}>
+            <div style={{ color:'#4ade80', fontWeight:700, fontSize:14 }}>{t.label}</div>
+            <div style={{ color:'#166534', fontSize:12, marginTop:3 }}>{t.sub}</div>
+          </div>
+        ))}
+      </section>
+
+      {/* ── FOOTER ───────────────────────────────────────── */}
+      <footer id="about" style={{ background:'#021a0c', padding:'36px 48px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:16 }}>
+        <div>
+          <div style={{ color:'#4ade80', fontWeight:700, fontSize:15 }}>IHIMS</div>
+          <div style={{ color:'#166534', fontSize:12, marginTop:3 }}>Integrated Hospital Information Management System</div>
+          <div style={{ color:'#14532d', fontSize:11, marginTop:2 }}>Bestlink College of the Philippines · Capstone Project · {new Date().getFullYear()}</div>
+        </div>
+        <div style={{ display:'flex', gap:20, alignItems:'center' }}>
+          <button type="button" onClick={()=>{setTermsTab('toa');setShowTerms(true)}} style={{ background:'none', border:'none', color:'#166534', fontSize:12, cursor:'pointer', padding:0, fontFamily:'inherit' }}>Terms of Access</button>
+          <button type="button" onClick={()=>{setTermsTab('eula');setShowTerms(true)}} style={{ background:'none', border:'none', color:'#166534', fontSize:12, cursor:'pointer', padding:0, fontFamily:'inherit' }}>EULA</button>
+        </div>
+      </footer>
+
+      {/* ── TERMS MODAL ──────────────────────────────────── */}
+      {showTerms && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(2,26,12,0.8)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={()=>setShowTerms(false)}>
+          <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:700, maxHeight:'85vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 25px 60px rgba(0,0,0,0.4)' }}
+            onClick={(e)=>e.stopPropagation()}>
+            <div style={{ padding:'18px 24px', borderBottom:'1px solid #dcefe2', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <strong style={{ fontSize:16, color:'#0f172a' }}>Legal Agreements</strong>
+              <button onClick={()=>setShowTerms(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#64748b', lineHeight:1 }}>×</button>
+            </div>
+            <div style={{ display:'flex', borderBottom:'1px solid #dcefe2', padding:'0 24px' }}>
+              {[{id:'toa',label:'Terms of Access'},{id:'eula',label:'EULA'}].map((t) => (
+                <button key={t.id} onClick={()=>setTermsTab(t.id)} style={{ padding:'10px 16px', border:'none', background:'none', cursor:'pointer', fontWeight:termsTab===t.id?700:400, borderBottom:termsTab===t.id?'2px solid #22c55e':'2px solid transparent', color:termsTab===t.id?'#16a34a':'#64748b', fontSize:13, fontFamily:'inherit', transition:'all 0.15s' }}>{t.label}</button>
+              ))}
+            </div>
+            <div style={{ overflowY:'auto', flex:1, padding:24, fontSize:13, lineHeight:1.75, color:'#374151' }}>
+              {termsTab==='toa' ? (
+                <div>
+                  <h2 style={{ fontSize:16, marginBottom:4, color:'#0f172a' }}>Terms of Access</h2>
+                  <p style={{ color:'#6b7280', marginBottom:16 }}>Effective: {new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})} · IHIMS</p>
+                  {[
+                    ['1. System Overview','IHIMS is a web-based platform for authorised personnel of small to medium-sized healthcare institutions in the Philippines. It supports workforce management, performance monitoring, competency gap analysis, and learning management. Developed as an academic capstone project by students of Bestlink College of the Philippines.'],
+                    ['2. Authorised Users','Access is strictly limited to individuals whose accounts have been created by a system administrator. Roles include Hospital Administrator, HR Personnel, and Staff. Unauthorised access or credential sharing is strictly prohibited.'],
+                    ['3. Acceptable Use','Users must not access records outside their authorised scope, circumvent RBAC controls, violate RA 10173, share employee data without authorisation, or use AI outputs as the sole basis for employment decisions.'],
+                    ['4. Data Privacy — RA 10173','All employee records are personal data under the Data Privacy Act of 2012. Users must handle data per applicable Philippine privacy regulations. Data must not be disclosed to unauthorised parties.'],
+                    ['5. AI Limitation','The AI Competency Gap Analysis is a decision-support tool only. All employment decisions must involve qualified HR professionals and comply with Philippine labour law.'],
+                    ['6. Security','Each user is responsible for the confidentiality of their credentials. OTP codes must not be shared. Report suspected unauthorised access to your administrator immediately.'],
+                    ['7. Governing Law','Governed by Philippine law including RA 10173, the Labor Code, and applicable DOH and PRC regulations.'],
+                  ].map(([h,p])=>(
+                    <div key={h} style={{ marginBottom:16 }}>
+                      <h4 style={{ color:'#16a34a', marginBottom:4 }}>{h}</h4>
+                      <p style={{ margin:0 }}>{p}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  <h2 style={{ fontSize:16, marginBottom:4, color:'#0f172a' }}>End-User License Agreement</h2>
+                  <p style={{ color:'#6b7280', marginBottom:16 }}>Effective: {new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})} · IHIMS</p>
+                  {[
+                    ['1. Grant of License','A limited, non-exclusive, non-transferable license is granted to the subscribing healthcare institution for internal HR management purposes only. This does not convey ownership of the software.'],
+                    ['2. Intellectual Property','IHIMS and all its components are the intellectual property of the development team and Bestlink College of the Philippines. Copying, modifying, distributing, or reverse-engineering without written consent is prohibited.'],
+                    ['3. Data Ownership','All institutional data entered into IHIMS remains the sole property of the subscribing institution. The development team claims no ownership over institutional data.'],
+                    ['4. AI Disclaimer','AI-generated outputs are for decision-support only. The development team makes no warranty regarding accuracy or fitness for a particular purpose of any AI-generated insight.'],
+                    ['5. No Warranty','IHIMS is provided "as is." The development team does not warrant uninterrupted or error-free operation. The institution is responsible for data backup and security measures.'],
+                    ['6. Limitation of Liability','To the fullest extent permitted by Philippine law, the development team shall not be liable for indirect, incidental, or consequential damages arising from use of IHIMS.'],
+                    ['7. Governing Law','Governed by the laws of the Republic of the Philippines. Contact the IHIMS development team through Bestlink College of the Philippines for any Agreement questions.'],
+                  ].map(([h,p])=>(
+                    <div key={h} style={{ marginBottom:16 }}>
+                      <h4 style={{ color:'#16a34a', marginBottom:4 }}>{h}</h4>
+                      <p style={{ margin:0 }}>{p}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ padding:'16px 24px', borderTop:'1px solid #dcefe2', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, cursor:'pointer', color:'#374151' }}>
+                <input type="checkbox" checked={acceptedTerms} onChange={(e)=>setAcceptedTerms(e.target.checked)} style={{ accentColor:'#22c55e' }}/>
                 I have read and accept these terms
               </label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn-cancel" onClick={() => setShowTerms(false)}>Close</button>
-                <button
-                  className="btn-save"
-                  onClick={() => setShowTerms(false)}
-                  disabled={!acceptedTerms}
-                >
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={()=>setShowTerms(false)} style={{ padding:'8px 16px', border:'1px solid #dcefe2', borderRadius:8, background:'none', cursor:'pointer', fontSize:13, color:'#64748b', fontFamily:'inherit' }}>Close</button>
+                <button onClick={()=>setShowTerms(false)} disabled={!acceptedTerms}
+                  style={{ padding:'8px 20px', border:'none', borderRadius:8, background:acceptedTerms?'linear-gradient(135deg,#22c55e,#4ade80)':'#e2e8f0', color:acceptedTerms?'#fff':'#94a3b8', cursor:acceptedTerms?'pointer':'not-allowed', fontSize:13, fontWeight:700, fontFamily:'inherit', boxShadow:acceptedTerms?'0 4px 10px rgba(34,197,94,0.3)':'none' }}>
                   Accept & Continue
                 </button>
               </div>
@@ -6083,6 +6045,9 @@ value={otp}
     </div>
   )
 }
+
+
+
 
 
 // Main App Component
