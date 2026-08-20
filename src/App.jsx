@@ -960,6 +960,13 @@ const actor = { name: userName || role, role, email: userEmail }
     appendAudit({ user: actor.name, role, action: 'create', module: 'learning', detail: `Added training program "${newRow.title}"` })
   }
 
+  const updateTraining = (id, data) => {
+    requireEdit(roles, 'learning')
+    const target = trainingPrograms.find((p) => p.id === id)
+    setTrainingPrograms((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)))
+    appendAudit({ user: actor.name, role, action: 'update', module: 'learning', detail: `Updated training program "${target?.title || id}"` })
+  }
+
 const deleteTraining = (id) => {
     requireEdit(roles, 'learning')
     const target = trainingPrograms.find((p) => p.id === id)
@@ -1383,6 +1390,7 @@ case 'learning':
             employees={visibleEmployees}
             registrations={registrations}
             addTraining={addTraining}
+            updateTraining={updateTraining}
             deleteTraining={deleteTraining}
             registerTraining={registerTraining}
             markTrainingCompletedForEmployee={markTrainingCompletedForEmployee}
@@ -3480,23 +3488,51 @@ function CompetencyModule({ competencies, canEdit, employees, addCompetency, upd
     </div>
   )
 }
-function LearningModule({ trainingPrograms, competencies, employees, registrations, addTraining, deleteTraining, registerTraining, markTrainingCompletedForEmployee, canEdit, role, roles, userName }) {
+function LearningModule({ trainingPrograms, competencies, employees, registrations, addTraining, updateTraining, deleteTraining, registerTraining, markTrainingCompletedForEmployee, canEdit, role, roles, userName }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newProg, setNewProg] = useState({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '', expiresOn: '', competencyIds: [] })
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
   const [feedbackModal, setFeedbackModal] = useState(null) // { programId, employeeId, emp, program }
   const [feedbackScore, setFeedbackScore] = useState(null)
+  const [editingProg, setEditingProg] = useState(null) // program object being edited, or null
+  const [editErr, setEditErr] = useState('')
+
+  const openEdit = (prog) => {
+    setEditingProg({ ...prog, competencyIds: prog.competencyIds || [] })
+    setEditErr('')
+  }
+
+  const saveEdit = () => {
+    if (!editingProg.title.trim()) { setEditErr('Program title is required.'); return }
+    if (!editingProg.date) { setEditErr('Session date is required — without it, countdown and calendar export cannot work.'); return }
+    if (!editingProg.seats || editingProg.seats < 1) { setEditErr('Seat capacity is required.'); return }
+    if (editingProg.seats < (editingProg.participants || 0)) { setEditErr(`Seat capacity can't be less than current registrations (${editingProg.participants}).`); return }
+    updateTraining(editingProg.id, editingProg)
+    setMsg(`"${editingProg.title}" updated.`)
+    setEditingProg(null)
+  }
 
   const handleAddTraining = (e) => {
     e.preventDefault()
     if (!canEdit) return
-    if (newProg.title) {
-      addTraining({ ...newProg, competencyIds: newProg.competencyIds || [] })
-      setMsg(`Training program "${newProg.title}" created.`)
-      setNewProg({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '', expiresOn: '', competencyIds: [] })
-      setShowAddForm(false)
+    if (!newProg.title.trim()) {
+      setErr('Program title is required.')
+      return
     }
+    if (!newProg.date) {
+      setErr('Session date is required — without it, countdown and calendar export cannot work.')
+      return
+    }
+    if (!newProg.seats || newProg.seats < 1) {
+      setErr('Seat capacity is required — enter how many people the session can hold.')
+      return
+    }
+    setErr('')
+    addTraining({ ...newProg, competencyIds: newProg.competencyIds || [] })
+    setMsg(`Training program "${newProg.title}" created.`)
+    setNewProg({ title: '', type: 'Workshop', duration: '8 hours', participants: 0, status: 'upcoming', instructor: '', cost: 0, seats: 0, date: '', time: '', location: '', expiresOn: '', competencyIds: [] })
+    setShowAddForm(false)
   }
 
   const toggleCompetencyLink = (compId) => {
@@ -3592,6 +3628,7 @@ function LearningModule({ trainingPrograms, competencies, employees, registratio
           ) : (
             <p className="module-readonly-note">You have view-only access to this module.</p>
           )}
+          {err ? <div className="account-msg error" style={{ marginTop: 12 }}>{err}</div> : null}
 
 {showAddForm && (
           <form className="data-form" onSubmit={handleAddTraining}>
@@ -3602,11 +3639,17 @@ function LearningModule({ trainingPrograms, competencies, employees, registratio
               <option value="Seminar">Seminar</option>
               <option value="Course">Course</option>
             </select>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2, #475569)' }}>Session Date *</span>
+              <input type="date" value={newProg.date} onChange={e => setNewProg({...newProg, date: e.target.value})} required />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2, #475569)' }}>Seat Capacity *</span>
+              <input type="number" placeholder="e.g. 20" min="1" value={newProg.seats || ''} onChange={e => setNewProg({...newProg, seats: parseInt(e.target.value) || 0})} required />
+            </label>
             <input type="text" placeholder="Duration" value={newProg.duration} onChange={e => setNewProg({...newProg, duration: e.target.value})} />
             <input type="text" placeholder="Instructor" value={newProg.instructor} onChange={e => setNewProg({...newProg, instructor: e.target.value})} />
             <input type="number" placeholder="Cost ($)" value={newProg.cost} onChange={e => setNewProg({...newProg, cost: parseInt(e.target.value) || 0})} />
-            <input type="number" placeholder="Seats" value={newProg.seats} onChange={e => setNewProg({...newProg, seats: parseInt(e.target.value) || 0})} />
-            <input type="date" value={newProg.date} onChange={e => setNewProg({...newProg, date: e.target.value})} />
             <input type="text" placeholder="Time" value={newProg.time} onChange={e => setNewProg({...newProg, time: e.target.value})} />
             <input type="text" placeholder="Location" value={newProg.location} onChange={e => setNewProg({...newProg, location: e.target.value})} />
             {newProg.type === 'Certification' ? (
@@ -3725,7 +3768,10 @@ function LearningModule({ trainingPrograms, competencies, employees, registratio
                   </button>
                 ) : null}
                 {canEdit && canManage ? (
-                  <button className="btn-delete" onClick={() => handleDelete(prog.id)}>Delete</button>
+                  <>
+                    <button className="btn-edit" onClick={() => openEdit(prog)}>Edit</button>
+                    <button className="btn-delete" onClick={() => handleDelete(prog.id)}>Delete</button>
+                  </>
                 ) : null}
               </div>
             </div>
@@ -3822,6 +3868,52 @@ function LearningModule({ trainingPrograms, competencies, employees, registratio
           </tbody>
         </table>
       </div>
+
+      {/* Edit Training Program Modal */}
+      {editingProg && (
+        <div className="modal-overlay" onClick={() => setEditingProg(null)}>
+          <div className="modal" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Edit Training Program</h3>
+              <button className="modal-close" onClick={() => setEditingProg(null)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              {editErr ? <div className="account-msg error">{editErr}</div> : null}
+              <div className="data-form" style={{ margin: 0, padding: 0, background: 'none', border: 'none' }}>
+                <input type="text" placeholder="Program Title" value={editingProg.title} onChange={e => setEditingProg({ ...editingProg, title: e.target.value })} required />
+                <select value={editingProg.type} onChange={e => setEditingProg({ ...editingProg, type: e.target.value })}>
+                  <option value="Workshop">Workshop</option>
+                  <option value="Certification">Certification</option>
+                  <option value="Seminar">Seminar</option>
+                  <option value="Course">Course</option>
+                </select>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2, #475569)' }}>Session Date *</span>
+                  <input type="date" value={editingProg.date || ''} onChange={e => setEditingProg({ ...editingProg, date: e.target.value })} required />
+                </label>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2, #475569)' }}>Seat Capacity * (currently {editingProg.participants || 0} registered)</span>
+                  <input type="number" min={editingProg.participants || 1} value={editingProg.seats || ''} onChange={e => setEditingProg({ ...editingProg, seats: parseInt(e.target.value) || 0 })} required />
+                </label>
+                <input type="text" placeholder="Duration" value={editingProg.duration || ''} onChange={e => setEditingProg({ ...editingProg, duration: e.target.value })} />
+                <input type="text" placeholder="Instructor" value={editingProg.instructor || ''} onChange={e => setEditingProg({ ...editingProg, instructor: e.target.value })} />
+                <input type="number" placeholder="Cost ($)" value={editingProg.cost || 0} onChange={e => setEditingProg({ ...editingProg, cost: parseInt(e.target.value) || 0 })} />
+                <input type="text" placeholder="Time" value={editingProg.time || ''} onChange={e => setEditingProg({ ...editingProg, time: e.target.value })} />
+                <input type="text" placeholder="Location" value={editingProg.location || ''} onChange={e => setEditingProg({ ...editingProg, location: e.target.value })} />
+                <select value={editingProg.status} onChange={e => setEditingProg({ ...editingProg, status: e.target.value })}>
+                  <option value="upcoming">Upcoming</option>
+                  <option value="ongoing">Ongoing</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setEditingProg(null)}>Cancel</button>
+              <button className="btn-save" onClick={saveEdit}>Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Feedback Loop Modal — mark training complete for an employee */}
       {feedbackModal && (
