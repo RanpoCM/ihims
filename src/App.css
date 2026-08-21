@@ -72,6 +72,145 @@
   --transition: 0.18s ease;
 }
 
+/* Legacy variable aliases — some older component styles reference these
+   names directly; point them at the real design tokens so both naming
+   schemes stay in sync (and so dark mode below covers everything). */
+:root {
+  --text-main: var(--text-1);
+  --text-secondary: var(--text-2);
+  --text-light: var(--text-3);
+  --bg-card: var(--surface);
+  --bg-main: var(--bg);
+  --border-light: var(--border);
+}
+
+/* ============================================================
+   Dark theme — toggled via [data-theme="dark"] on <html>.
+   Every color above is a CSS variable, so overriding them here
+   re-themes the entire app without touching component rules.
+   ============================================================ */
+[data-theme="dark"] {
+  --bg: #0b1712;
+  --surface: #10241b;
+  --surface-2: #14301f;
+  --border: #204632;
+  --border-strong: #2d5c40;
+
+  --text-1: #eaf7ee;
+  --text-2: #a9d3b6;
+  --text-3: #6f9c80;
+
+  --topbar-bg: #0d2117;
+
+  --primary-soft: rgba(34, 197, 94, 0.16);
+  --secondary-soft: rgba(52, 211, 153, 0.16);
+  --success-soft: rgba(22, 163, 74, 0.18);
+  --warning-soft: rgba(217, 119, 6, 0.18);
+  --danger-soft: rgba(220, 38, 38, 0.18);
+  --accent-soft: rgba(21, 128, 61, 0.18);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] body {
+  background: var(--bg);
+  color: var(--text-1);
+}
+
+/* Components with hardcoded light backgrounds — re-themed explicitly
+   since they don't use the surface/border variables. */
+[data-theme="dark"] .ai-bot-panel,
+[data-theme="dark"] .ai-bot-input,
+[data-theme="dark"] .ai-bot-msg.bot .ai-bot-bubble,
+[data-theme="dark"] .btn-comment,
+[data-theme="dark"] .notif-panel {
+  background: var(--surface);
+  color: var(--text-1);
+}
+
+[data-theme="dark"] .ai-bot-messages {
+  background: var(--bg);
+}
+
+[data-theme="dark"] .login-demo-code,
+[data-theme="dark"] .dashboard-announcement.pinned,
+[data-theme="dark"] .announcement-item.pinned {
+  background: rgba(217, 119, 6, 0.14);
+}
+
+[data-theme="dark"] .modal-overlay {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+[data-theme="dark"] .performance-table tbody tr:hover,
+[data-theme="dark"] .performance-table tbody tr.selected {
+  background: var(--primary-soft);
+}
+
+/* ============================================================
+   Theme toggle button
+   ============================================================ */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+  position: relative;
+}
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  transition: background var(--transition), color var(--transition);
+}
+
+.theme-toggle-btn.active {
+  background: var(--sidebar-active);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.35);
+}
+
+.theme-toggle-btn:not(.active):hover {
+  color: var(--text-1);
+}
+
+.theme-toggle-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  border: 1px solid var(--border);
+  color: var(--primary);
+  transition: background var(--transition), transform var(--transition);
+}
+
+.theme-toggle-icon-btn:hover {
+  background: #dbeafe;
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .theme-toggle-icon-btn:hover {
+  background: var(--border-strong);
+}
+
 /* ---------- Reset ---------- */
 *,
 *::before,
