@@ -813,8 +813,50 @@ function LiveClock() {
   )
 }
 
+// Small line-art sun / moon icons for the theme toggle (no icon set entry
+// exists for these yet, so they're drawn inline to match the same stroke
+// style as the rest of the Icon set).
+function SunIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4.2" />
+      <path d="M12 2.5v2.4M12 19.1v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" />
+    </svg>
+  )
+}
+
+function MoonIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7z" />
+    </svg>
+  )
+}
+
 // App Content - localStorage-backed
 function AppContent({ role, roles, userName, userEmail, myPhoto, onUpdateMyPhoto, onLogout, onLogoutAll, trustedDevice, trustDaysLeft }) {
+  // ---- Theme (light / dark) -------------------------------------------
+  const [theme, setTheme] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ihims_theme')
+      if (stored === 'light' || stored === 'dark') return stored
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    } catch {
+      return 'light'
+    }
+  })
+
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute('data-theme', theme)
+      localStorage.setItem('ihims_theme', theme)
+    } catch {
+      // ignore storage errors
+    }
+  }, [theme])
+
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
+
   const [employees, setEmployees] = useState(() => getStoredData('ihims_employees', initialEmployees))
   const [trainingPrograms, setTrainingPrograms] = useState(() => getStoredData('ihims_training', initialTrainingPrograms))
   const [competencies, setCompetencies] = useState(() => getStoredData('ihims_competencies', initialCompetencies))
@@ -1342,6 +1384,8 @@ case 'dashboard':
             roles={roles}
             canEdit={roles.includes('admin') || roles.includes('hr')}
             onNavigate={setActiveModule}
+            theme={theme}
+            setTheme={setTheme}
           />
         )
 case 'performance':
@@ -1505,6 +1549,8 @@ default:
             roles={roles}
             canEdit={roles.includes('admin') || roles.includes('hr')}
             onNavigate={setActiveModule}
+            theme={theme}
+            setTheme={setTheme}
           />
         )
     }
@@ -1548,6 +1594,16 @@ default:
           <LiveClock />
           <span className="status-indicator"><span className="status-dot"></span> Online</span>
           <div className="header-actions">
+            {/* Theme toggle */}
+            <button
+              type="button"
+              className="theme-toggle-icon-btn"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label="Toggle light/dark theme"
+            >
+              {theme === 'dark' ? <SunIcon size={18} /> : <MoonIcon size={18} />}
+            </button>
             {/* Trusted device indicator */}
             {trustedDevice ? (
               <span title={`This device is trusted for ${trustDaysLeft ?? 7} more day(s). OTP will not be required on next login.`} style={{
@@ -1700,7 +1756,7 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
 }
 
 // Dashboard Component
-function Dashboard({ employees, trainingPrograms, recognitionAwards, successionCandidates, announcements, reviewCycles, reviews, role, roles, canEdit, onNavigate }) {
+function Dashboard({ employees, trainingPrograms, recognitionAwards, successionCandidates, announcements, reviewCycles, reviews, role, roles, canEdit, onNavigate, theme, setTheme }) {
   const avgPerformance = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.performance, 0) / employees.length) : 0
   const avgCompetency = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.competency, 0) / employees.length) : 0
   const avgTraining = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.training, 0) / employees.length) : 0
@@ -1746,8 +1802,30 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
 
   return (
 <div className="dashboard">
-      <h1 className="page-title">AI-Driven Human Resource Management System</h1>
-      <p className="page-subtitle">Competency Gap Analysis for Performance and Development</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <h1 className="page-title">AI-Driven Human Resource Management System</h1>
+          <p className="page-subtitle">Competency Gap Analysis for Performance and Development</p>
+        </div>
+        {setTheme ? (
+          <div className="theme-toggle" role="group" aria-label="Theme">
+            <button
+              type="button"
+              className={`theme-toggle-btn ${theme !== 'dark' ? 'active' : ''}`}
+              onClick={() => setTheme('light')}
+            >
+              <SunIcon size={14} /> Light
+            </button>
+            <button
+              type="button"
+              className={`theme-toggle-btn ${theme === 'dark' ? 'active' : ''}`}
+              onClick={() => setTheme('dark')}
+            >
+              <MoonIcon size={14} /> Dark
+            </button>
+          </div>
+        ) : null}
+      </div>
 
       {/* What needs attention today — simple plain-language summary card */}
       {(() => {
