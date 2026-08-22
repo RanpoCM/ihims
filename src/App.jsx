@@ -1384,8 +1384,6 @@ case 'dashboard':
             roles={roles}
             canEdit={roles.includes('admin') || roles.includes('hr')}
             onNavigate={setActiveModule}
-            theme={theme}
-            setTheme={setTheme}
           />
         )
 case 'performance':
@@ -1549,8 +1547,6 @@ default:
             roles={roles}
             canEdit={roles.includes('admin') || roles.includes('hr')}
             onNavigate={setActiveModule}
-            theme={theme}
-            setTheme={setTheme}
           />
         )
     }
@@ -1756,7 +1752,7 @@ function Navbar({ activeModule, setActiveModule, mobileMenuOpen, setMobileMenuOp
 }
 
 // Dashboard Component
-function Dashboard({ employees, trainingPrograms, recognitionAwards, successionCandidates, announcements, reviewCycles, reviews, role, roles, canEdit, onNavigate, theme, setTheme }) {
+function Dashboard({ employees, trainingPrograms, recognitionAwards, successionCandidates, announcements, reviewCycles, reviews, role, roles, canEdit, onNavigate }) {
   const avgPerformance = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.performance, 0) / employees.length) : 0
   const avgCompetency = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.competency, 0) / employees.length) : 0
   const avgTraining = employees.length > 0 ? Math.round(employees.reduce((sum, e) => sum + e.training, 0) / employees.length) : 0
@@ -1802,30 +1798,8 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
 
   return (
 <div className="dashboard">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-        <div>
-          <h1 className="page-title">AI-Driven Human Resource Management System</h1>
-          <p className="page-subtitle">Competency Gap Analysis for Performance and Development</p>
-        </div>
-        {setTheme ? (
-          <div className="theme-toggle" role="group" aria-label="Theme">
-            <button
-              type="button"
-              className={`theme-toggle-btn ${theme !== 'dark' ? 'active' : ''}`}
-              onClick={() => setTheme('light')}
-            >
-              <SunIcon size={14} /> Light
-            </button>
-            <button
-              type="button"
-              className={`theme-toggle-btn ${theme === 'dark' ? 'active' : ''}`}
-              onClick={() => setTheme('dark')}
-            >
-              <MoonIcon size={14} /> Dark
-            </button>
-          </div>
-        ) : null}
-      </div>
+      <h1 className="page-title">AI-Driven Human Resource Management System</h1>
+      <p className="page-subtitle">Competency Gap Analysis for Performance and Development</p>
 
       {/* What needs attention today — simple plain-language summary card */}
       {(() => {
