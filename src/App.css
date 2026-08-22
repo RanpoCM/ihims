@@ -242,6 +242,24 @@ input,
 select {
   font-family: inherit;
   font-size: inherit;
+  color: inherit;
+}
+
+/* Safety net: any input/select/textarea that forgets to set its own
+   text color still adapts to the active theme instead of falling back
+   to the browser's default black text. */
+input,
+select,
+textarea {
+  color: var(--text-1);
+}
+
+/* The dropdown list a <select> opens is rendered by the OS/browser, not
+   by our CSS — most browsers respect background-color/color set directly
+   on the <option> elements, so set them explicitly for both themes. */
+select option {
+  background: var(--surface);
+  color: var(--text-1);
 }
 
 button {
@@ -2546,6 +2564,7 @@ button {
   border-radius: var(--radius-sm);
   font-size: var(--fs-md);
   background: var(--surface);
+  color: var(--text-1);
   min-width: 260px;
 }
 
