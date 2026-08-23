@@ -109,7 +109,7 @@ export function buildRoadmap(gaps) {
 // Full gap analysis for a single employee
 export function analyzeEmployee(employee, { recognitionCount = 0 } = {}) {
   const current = estimateEmployeeCompetencies(employee, { recognitionCount })
-  const required = requiredLevelsForRole(employee.role)
+  const required = requiredLevelsForRole(employee.role, employee.department)
   const ai = computeAIReadiness(current)
 
   const gaps = COMPETENCIES.map((comp) => {
