@@ -91,8 +91,63 @@ export const REQUIRED_LEVELS_BY_ROLE = {
   },
 }
 
-export const requiredLevelsForRole = (role) => {
-  return REQUIRED_LEVELS_BY_ROLE[role] || REQUIRED_LEVELS_BY_ROLE.default
+export const requiredLevelsForRole = (role, department) => {
+  if (REQUIRED_LEVELS_BY_ROLE[role]) return REQUIRED_LEVELS_BY_ROLE[role]
+  return inferRequiredLevels(role, department)
+}
+
+// ---------------------------------------------------------------------------
+// Automated required-level inference for roles with no explicit profile.
+//
+// Previously, any role not listed in REQUIRED_LEVELS_BY_ROLE silently fell
+// back to a flat "3 for everything" baseline — meaningless once an
+// organization adds roles beyond the seeded 8. This replaces that fallback
+// with a deterministic, explainable classifier: it reads the role title and
+// department, scores it against a few keyword axes (clinical / leadership /
+// technical / administrative), and raises the relevant competencies
+// proportionally from the baseline. No manual per-role configuration is
+// required going forward — every new role automatically gets a tailored
+// profile the moment it's used.
+// ---------------------------------------------------------------------------
+
+const clampLevel = (n) => Math.max(1, Math.min(5, Math.round(n)))
+
+// Score a role/department string against classification axes (0-1 each).
+// Keyword-based and deterministic — same auditable approach as the rest of
+// this engine, just applied one level up (role classification instead of
+// employee scoring).
+const classifyRole = (role, department) => {
+  const text = `${role || ''} ${department || ''}`.toLowerCase()
+  return {
+    clinical: /nurse|doctor|physician|clinical|surgeon|therapist|cardio|pediatric|medical|patient|lab|technician/.test(text) ? 1 : 0,
+    leadership: /chief|director|head|vp|executive|officer|president/.test(text) ? 1 : /manager|lead|supervisor|senior/.test(text) ? 0.6 : 0,
+    technical: /technician|engineer|\bit\b|analyst|developer|technical|system/.test(text) ? 1 : 0,
+    administrative: /admin|hr|human resource|clerk|coordinator|assistant|secretary/.test(text) ? 1 : 0,
+  }
+}
+
+export function inferRequiredLevels(role, department) {
+  const c = classifyRole(role, department)
+  const base = REQUIRED_LEVELS_BY_ROLE.default
+  const bump = (key, amount) => clampLevel(base[key] + amount)
+
+  return {
+    jobKnowledge: bump('jobKnowledge', (c.leadership + c.clinical) * 0.5),
+    technicalSkills: bump('technicalSkills', c.technical * 1.5 + c.clinical * 0.5),
+    clinicalSkills: bump('clinicalSkills', c.clinical * 2),
+    leadership: bump('leadership', c.leadership * 2),
+    communication: bump('communication', c.leadership * 1 + c.clinical * 0.5),
+    teamwork: bump('teamwork', c.clinical * 0.5 + c.administrative * 0.3),
+    criticalThinking: bump('criticalThinking', c.clinical * 0.5 + c.leadership * 0.5),
+    problemSolving: bump('problemSolving', c.technical * 0.5 + c.leadership * 0.5),
+    customerService: bump('customerService', c.clinical * 0.5 + c.administrative * 0.5),
+    compliance: bump('compliance', c.clinical * 1.5 + c.administrative * 0.5),
+    digitalLiteracy: bump('digitalLiteracy', c.technical * 1),
+    aiLiteracy: bump('aiLiteracy', c.technical * 0.5 + c.leadership * 0.5),
+    dataLiteracy: bump('dataLiteracy', c.technical * 1 + c.leadership * 0.5),
+    innovation: bump('innovation', c.leadership * 1),
+    continuousLearning: bump('continuousLearning', c.clinical * 0.5 + c.leadership * 0.5),
+  }
 }
 
 // ---------------------------------------------------------------------------
