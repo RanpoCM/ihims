@@ -1806,8 +1806,21 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
         const items = []
         const lowPerf = employees.filter(e => e.performance < 80)
         if (lowPerf.length) items.push({ icon: 'warn', text: `${lowPerf.length} employee${lowPerf.length > 1 ? 's' : ''} ${lowPerf.length > 1 ? 'have' : 'has'} performance below 80% — e.g. ${lowPerf[0].name}.` })
-        const gaps = employees.filter(e => e.competency < e.performance)
-        if (gaps.length) items.push({ icon: 'search', text: `${gaps.length} employee${gaps.length > 1 ? 's' : ''} ${gaps.length > 1 ? 'have' : 'has'} a competency gap vs their performance score.` })
+
+        // Automated competency gap detection — runs the same rule-based gap
+        // engine used in AI Competency / Succession / My Development Plan,
+        // and surfaces anyone with a High-priority gap (gap >= 2 levels)
+        // right here, so HR doesn't have to manually open each profile.
+        const gapAnalyses = employees.map(e => ({ emp: e, analysis: analyzeEmployee(e) }))
+        const criticalGapEmployees = gapAnalyses.filter(({ analysis }) => analysis.highPriority.length > 0)
+        if (criticalGapEmployees.length) {
+          const worst = [...criticalGapEmployees].sort((a, b) => b.analysis.highPriority.length - a.analysis.highPriority.length)[0]
+          items.push({
+            icon: 'search',
+            text: `${criticalGapEmployees.length} employee${criticalGapEmployees.length > 1 ? 's have' : ' has'} high-priority competency gap(s) — e.g. ${worst.emp.name} (${worst.analysis.highPriority.length} area${worst.analysis.highPriority.length > 1 ? 's' : ''} below required level). See AI Competency for full analysis.`,
+          })
+        }
+
         const upcomingTraining = trainingPrograms.filter(p => p.status === 'upcoming')
         if (upcomingTraining.length) items.push({ icon: 'calendar', text: `${upcomingTraining.length} training session${upcomingTraining.length > 1 ? 's' : ''} upcoming — encourage staff to register early.` })
         const lowTraining = employees.filter(e => e.training < 85)
