@@ -1831,8 +1831,8 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
           </div>
         )
         return (
-          <div style={{ background: 'var(--warning-bg, #fffbeb)', border: '1px solid var(--warning, #f59e0b)', borderRadius: 10, padding: '14px 18px', marginBottom: 18 }}>
-            <strong style={{ fontSize: 14 }}>What needs attention today</strong>
+          <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 10, padding: '14px 18px', marginBottom: 18 }}>
+            <strong style={{ fontSize: 14, color: '#92400e' }}>What needs attention today</strong>
             <ul style={{ margin: '8px 0 0', paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
               {items.map((item, i) => (
                 <li key={i} style={{ fontSize: 13, color: '#92400e', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
