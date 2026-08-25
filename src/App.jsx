@@ -1796,54 +1796,88 @@ function Dashboard({ employees, trainingPrograms, recognitionAwards, successionC
       return pending > 0 ? [{ cycle: c, pending, daysLeft: d }] : []
     })
 
+  // "What needs attention today" — memoized so the (relatively expensive)
+  // per-employee gap analysis only re-runs when the underlying data
+  // actually changes, not on every Dashboard re-render (e.g. typing in the
+  // search box above). Each item carries a `nav` target so it's clickable.
+  const attentionItems = useMemo(() => {
+    const items = []
+    const lowPerf = employees.filter(e => e.performance < 80)
+    if (lowPerf.length) items.push({
+      icon: 'warn',
+      nav: 'performance',
+      text: `${lowPerf.length} employee${lowPerf.length > 1 ? 's' : ''} ${lowPerf.length > 1 ? 'have' : 'has'} performance below 80% — e.g. ${lowPerf[0].name}.`,
+    })
+
+    // Automated competency gap detection — runs the same rule-based gap
+    // engine used in AI Competency / Succession / My Development Plan,
+    // and surfaces anyone with a High-priority gap (gap >= 2 levels)
+    // right here, so HR doesn't have to manually open each profile.
+    const gapAnalyses = employees.map(e => ({ emp: e, analysis: analyzeEmployee(e) }))
+    const criticalGapEmployees = gapAnalyses.filter(({ analysis }) => analysis.highPriority.length > 0)
+    if (criticalGapEmployees.length) {
+      const worst = [...criticalGapEmployees].sort((a, b) => b.analysis.highPriority.length - a.analysis.highPriority.length)[0]
+      items.push({
+        icon: 'search',
+        nav: 'aiCompetency',
+        text: `${criticalGapEmployees.length} employee${criticalGapEmployees.length > 1 ? 's have' : ' has'} high-priority competency gap(s) — e.g. ${worst.emp.name} (${worst.analysis.highPriority.length} area${worst.analysis.highPriority.length > 1 ? 's' : ''} below required level). See AI Competency for full analysis.`,
+      })
+    }
+
+    const upcomingTraining = trainingPrograms.filter(p => p.status === 'upcoming')
+    if (upcomingTraining.length) items.push({
+      icon: 'calendar',
+      nav: 'learning',
+      text: `${upcomingTraining.length} training session${upcomingTraining.length > 1 ? 's' : ''} upcoming — encourage staff to register early.`,
+    })
+
+    const lowTraining = employees.filter(e => e.training < 85)
+    if (lowTraining.length) items.push({
+      icon: 'learning',
+      nav: 'learning',
+      text: `${lowTraining.length} employee${lowTraining.length > 1 ? 's' : ''} ${lowTraining.length > 1 ? 'have' : 'has'} training completion below 85%.`,
+    })
+
+    return items
+  }, [employees, trainingPrograms])
+
   return (
 <div className="dashboard">
       <h1 className="page-title">AI-Driven Human Resource Management System</h1>
       <p className="page-subtitle">Competency Gap Analysis for Performance and Development</p>
 
       {/* What needs attention today — simple plain-language summary card */}
-      {(() => {
-        const items = []
-        const lowPerf = employees.filter(e => e.performance < 80)
-        if (lowPerf.length) items.push({ icon: 'warn', text: `${lowPerf.length} employee${lowPerf.length > 1 ? 's' : ''} ${lowPerf.length > 1 ? 'have' : 'has'} performance below 80% — e.g. ${lowPerf[0].name}.` })
-
-        // Automated competency gap detection — runs the same rule-based gap
-        // engine used in AI Competency / Succession / My Development Plan,
-        // and surfaces anyone with a High-priority gap (gap >= 2 levels)
-        // right here, so HR doesn't have to manually open each profile.
-        const gapAnalyses = employees.map(e => ({ emp: e, analysis: analyzeEmployee(e) }))
-        const criticalGapEmployees = gapAnalyses.filter(({ analysis }) => analysis.highPriority.length > 0)
-        if (criticalGapEmployees.length) {
-          const worst = [...criticalGapEmployees].sort((a, b) => b.analysis.highPriority.length - a.analysis.highPriority.length)[0]
-          items.push({
-            icon: 'search',
-            text: `${criticalGapEmployees.length} employee${criticalGapEmployees.length > 1 ? 's have' : ' has'} high-priority competency gap(s) — e.g. ${worst.emp.name} (${worst.analysis.highPriority.length} area${worst.analysis.highPriority.length > 1 ? 's' : ''} below required level). See AI Competency for full analysis.`,
-          })
-        }
-
-        const upcomingTraining = trainingPrograms.filter(p => p.status === 'upcoming')
-        if (upcomingTraining.length) items.push({ icon: 'calendar', text: `${upcomingTraining.length} training session${upcomingTraining.length > 1 ? 's' : ''} upcoming — encourage staff to register early.` })
-        const lowTraining = employees.filter(e => e.training < 85)
-        if (lowTraining.length) items.push({ icon: 'learning', text: `${lowTraining.length} employee${lowTraining.length > 1 ? 's' : ''} ${lowTraining.length > 1 ? 'have' : 'has'} training completion below 85%.` })
-        if (items.length === 0) return (
-          <div className="account-msg success" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Icon name="checkCircle" size={16} /> Everything looks good today — no immediate issues found.
-          </div>
-        )
-        return (
-          <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 10, padding: '14px 18px', marginBottom: 18 }}>
-            <strong style={{ fontSize: 14, color: '#92400e' }}>What needs attention today</strong>
-            <ul style={{ margin: '8px 0 0', paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {items.map((item, i) => (
-                <li key={i} style={{ fontSize: 13, color: '#92400e', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+      {attentionItems.length === 0 ? (
+        <div className="account-msg success" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon name="checkCircle" size={16} /> Everything looks good today — no immediate issues found.
+        </div>
+      ) : (
+        <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 10, padding: '14px 18px', marginBottom: 18 }}>
+          <strong style={{ fontSize: 14, color: '#92400e' }}>What needs attention today</strong>
+          <ul style={{ margin: '8px 0 0', paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {attentionItems.map((item, i) => (
+              <li key={i}>
+                <button
+                  type="button"
+                  onClick={() => item.nav && onNavigate && onNavigate(item.nav)}
+                  style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%',
+                    textAlign: 'left', background: 'none', border: 'none', padding: '4px 6px',
+                    margin: 0, fontSize: 13, color: '#92400e', cursor: item.nav ? 'pointer' : 'default',
+                    borderRadius: 6, fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={(e) => { if (item.nav) e.currentTarget.style.background = 'rgba(146,64,14,0.08)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+                >
                   <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name={item.icon} size={14} /></span>
-                  <span>{item.text}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )
-      })()}
+                  <span style={{ flex: 1 }}>{item.text}</span>
+                  {item.nav ? <Icon name="arrowRight" size={12} /> : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="quick-actions" style={{ marginBottom: 16 }}>
         <button className="quick-action" onClick={() => onNavigate && onNavigate('orgchart')}><Icon name="accounts" size={16} /> Org Chart</button>
