@@ -4726,6 +4726,131 @@ button {
   gap: 12px;
 }
 
+/* =====================================================
+   Mobile responsiveness fixes for inline-styled sections
+   (landing page hero/features, topbar actions row).
+   These target structural layout props that were fixed
+   pixel values in inline styles and never collapsed on
+   narrow screens.
+   ===================================================== */
+@media (max-width: 767px) {
+  .header-actions {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    justify-content: flex-end;
+  }
+}
+
+.landing-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  height: 64px;
+  gap: 16px;
+}
+
+.landing-nav-links-row {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.landing-hero-section {
+  padding: 80px 48px 100px;
+}
+
+.landing-hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 64px;
+  align-items: center;
+}
+
+.landing-hero-title {
+  font-size: 52px;
+}
+
+.landing-hero-stats-row {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+  row-gap: 20px;
+}
+
+.landing-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.landing-compliance-strip {
+  padding: 40px 48px;
+}
+
+.landing-login-card {
+  padding: 32px;
+}
+
+@media (max-width: 900px) {
+  .landing-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+}
+
+@media (max-width: 767px) {
+  .landing-nav-row {
+    padding: 0 20px;
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .landing-nav-links-row {
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .landing-hero-section {
+    padding: 48px 20px 56px;
+  }
+
+  .landing-hero-title {
+    font-size: 34px;
+  }
+
+  .landing-hero-stats-row {
+    gap: 24px;
+    row-gap: 16px;
+  }
+
+  .landing-features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-compliance-strip {
+    padding: 28px 20px;
+    gap: 28px !important;
+  }
+
+  .landing-login-card {
+    padding: 22px;
+  }
+}
+
+@media (max-width: 420px) {
+  .landing-hero-title {
+    font-size: 28px;
+  }
+
+  .landing-hero-stats-row {
+    gap: 18px;
+  }
+}
+
 .notif-bell {
   position: relative;
   display: inline-flex;
