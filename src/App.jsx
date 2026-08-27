@@ -5896,12 +5896,10 @@ const normalized = otp.trim()
     <div style={{ fontFamily:"'Inter','Segoe UI',system-ui,sans-serif", background:'#f6faf7', minHeight:'100vh' }}>
 
       {/* ── NAV ─────────────────────────────────────────── */}
-      <nav style={{
+      <nav className="landing-nav-row" style={{
         position:'sticky', top:0, zIndex:100,
         background:'#052e16',
         borderBottom:'1px solid rgba(255,255,255,0.06)',
-        display:'flex', alignItems:'center', justifyContent:'space-between',
-        padding:'0 48px', height:64,
         boxShadow:'0 2px 12px rgba(0,0,0,0.3)',
       }}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
@@ -5909,7 +5907,7 @@ const normalized = otp.trim()
             width:38, height:38, borderRadius:10,
             background:'linear-gradient(135deg,#22c55e,#4ade80)',
             display:'flex', alignItems:'center', justifyContent:'center',
-            boxShadow:'0 4px 10px rgba(34,197,94,0.35)',
+            boxShadow:'0 4px 10px rgba(34,197,94,0.35)', flexShrink:0,
           }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
               <path d="M12 4v16M4 12h16"/>
@@ -5920,7 +5918,7 @@ const normalized = otp.trim()
             <div style={{ color:'#4ade80', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>Hospital HR System</div>
           </div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:28 }}>
+        <div className="landing-nav-links-row">
           {['Features','About'].map((l) => (
             <a key={l} href={`#${l.toLowerCase()}`}
               style={{ color:'#86efac', fontSize:13, textDecoration:'none', fontWeight:500 }}
@@ -5934,11 +5932,10 @@ const normalized = otp.trim()
       </nav>
 
       {/* ── HERO ─────────────────────────────────────────── */}
-      <section style={{
+      <section className="landing-hero-section" style={{
         background:'linear-gradient(160deg,#052e16 0%,#14532d 55%,#052e16 100%)',
-        padding:'80px 48px 100px',
       }}>
-        <div style={{ maxWidth:1200, margin:'0 auto', display:'grid', gridTemplateColumns:'1fr 420px', gap:64, alignItems:'center' }}>
+        <div className="landing-hero-grid" style={{ maxWidth:1200, margin:'0 auto' }}>
 
           {/* Left — copy */}
           <div>
@@ -5951,7 +5948,7 @@ const normalized = otp.trim()
               <span style={{ color:'#4ade80', fontSize:12, fontWeight:600, letterSpacing:'0.04em' }}>AI-Driven · Philippine Healthcare</span>
             </div>
 
-            <h1 style={{ color:'#fff', fontSize:52, fontWeight:800, lineHeight:1.08, letterSpacing:'-0.03em', margin:'0 0 20px' }}>
+            <h1 className="landing-hero-title" style={{ color:'#fff', fontWeight:800, lineHeight:1.08, letterSpacing:'-0.03em', margin:'0 0 20px' }}>
               Close the{' '}
               <span style={{ background:'linear-gradient(90deg,#22c55e,#4ade80)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
                 competency gap
@@ -5965,7 +5962,7 @@ const normalized = otp.trim()
             </p>
 
             {/* Stats row */}
-            <div style={{ display:'flex', gap:40, marginBottom:44 }}>
+            <div className="landing-hero-stats-row" style={{ marginBottom:44 }}>
               {[{num:'6',label:'Core Modules'},{num:'3',label:'Role Levels'},{num:'AI',label:'Gap Analysis'},{num:'RA 10173',label:'Compliant'}].map((s) => (
                 <div key={s.label}>
                   <div style={{ color:'#fff', fontSize:26, fontWeight:800, letterSpacing:'-0.03em', lineHeight:1 }}>{s.num}</div>
@@ -5990,9 +5987,9 @@ const normalized = otp.trim()
           </div>
 
           {/* Right — Login card */}
-          <div style={{
+          <div className="landing-login-card" style={{
             background:'rgba(5,46,22,0.7)', border:'1px solid rgba(34,197,94,0.2)',
-            borderRadius:20, padding:32,
+            borderRadius:20,
             backdropFilter:'blur(20px)',
             boxShadow:'0 25px 50px rgba(0,0,0,0.4), 0 0 0 1px rgba(34,197,94,0.08)',
           }}>
@@ -6136,14 +6133,14 @@ const normalized = otp.trim()
       </section>
 
       {/* ── FEATURES ─────────────────────────────────────── */}
-      <section id="features" style={{ background:'#fff', padding:'96px 48px' }}>
+      <section id="features" className="landing-features-section" style={{ background:'#fff' }}>
         <div style={{ maxWidth:1100, margin:'0 auto' }}>
           <div style={{ textAlign:'center', marginBottom:56 }}>
             <div style={{ display:'inline-block', background:'#ecfdf5', borderRadius:999, padding:'4px 14px', color:'#16a34a', fontSize:12, fontWeight:700, marginBottom:14, letterSpacing:'0.05em', textTransform:'uppercase' }}>Capabilities</div>
             <h2 style={{ fontSize:36, fontWeight:800, color:'#0f172a', letterSpacing:'-0.02em', margin:'0 0 14px' }}>Everything your HR team needs</h2>
             <p style={{ color:'#475569', fontSize:16, maxWidth:520, margin:'0 auto' }}>One integrated platform for workforce development, competency management, and employee engagement.</p>
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:24 }}>
+          <div className="landing-features-grid">
             {[
               {icon:'performance',title:'Performance Analytics',desc:'Real-time dashboards tracking performance, competency, and training scores across all departments.',bg:'#f0fdf4',accent:'#22c55e'},
               {icon:'ai',title:'AI Competency Engine',desc:'Evidence-based gap analysis generates personalized development roadmaps per employee and role.',bg:'#ecfdf5',accent:'#16a34a'},
@@ -6169,7 +6166,7 @@ const normalized = otp.trim()
       </section>
 
       {/* ── COMPLIANCE STRIP ─────────────────────────────── */}
-      <section style={{ background:'#052e16', padding:'40px 48px', display:'flex', justifyContent:'center', gap:60, flexWrap:'wrap', borderTop:'1px solid rgba(34,197,94,0.15)' }}>
+      <section className="landing-compliance-strip" style={{ background:'#052e16', display:'flex', justifyContent:'center', gap:60, flexWrap:'wrap', borderTop:'1px solid rgba(34,197,94,0.15)' }}>
         {[
           {label:'RA 10173 Compliant',sub:'Data Privacy Act'},
           {label:'DOH-Aligned',sub:'Healthcare Standards'},
