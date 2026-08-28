@@ -4797,6 +4797,10 @@ button {
     grid-template-columns: 1fr;
     gap: 40px;
   }
+
+  .landing-features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 767px) {
@@ -4838,6 +4842,24 @@ button {
 
   .landing-login-card {
     padding: 22px;
+  }
+}
+
+.landing-features-section {
+  padding: 96px 48px;
+}
+
+.landing-footer-section {
+  padding: 36px 48px;
+}
+
+@media (max-width: 767px) {
+  .landing-features-section {
+    padding: 56px 20px;
+  }
+
+  .landing-footer-section {
+    padding: 24px 20px;
   }
 }
 
