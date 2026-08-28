@@ -6182,7 +6182,7 @@ const normalized = otp.trim()
       </section>
 
       {/* ── FOOTER ───────────────────────────────────────── */}
-      <footer id="about" style={{ background:'#021a0c', padding:'36px 48px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:16 }}>
+      <footer id="about" className="landing-footer-section" style={{ background:'#021a0c', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:16 }}>
         <div>
           <div style={{ color:'#4ade80', fontWeight:700, fontSize:15 }}>IHIMS</div>
           <div style={{ color:'#166534', fontSize:12, marginTop:3 }}>Integrated Hospital Information Management System</div>
