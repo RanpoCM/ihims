@@ -1457,7 +1457,6 @@ case 'recognition':
         return (
           <RecognitionModule
             recognitionAwards={recognitionAwards}
-            employees={employees}
             addRecognition={addRecognition}
             deleteRecognition={deleteRecognition}
             toggleLike={toggleRecognitionLike}
