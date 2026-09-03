@@ -1,16 +1,32 @@
-# React + Vite
+# IHIMS
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+IHIMS is a React + Vite human resource management system. See
+[SETUP_GUIDE.md](./SETUP_GUIDE.md) for Supabase authentication and deployment
+configuration.
 
-Currently, two official plugins are available:
+## Source structure
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```text
+src/
+|-- App.jsx                  # Application shell and page composition
+|-- components/              # Reusable presentational components
+|-- features/                # Domain-specific product features
+|   `-- competency/          # Competency and AI-readiness analysis
+|-- services/                # External integrations and assistant services
+|-- security/                # Roles, permissions, and access checks
+|-- assets/                  # Images and static imports
+|-- index.css                # Global styles
+`-- supabaseSchema.sql       # Optional database reference schema
+```
 
-## React Compiler
+Keep new domain behavior in `features/<feature-name>`, reusable UI in
+`components`, external API clients in `services`, and authorization logic in
+`security`. `App.jsx` should primarily compose these pieces.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Commands
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+```bash
+npm run dev
+npm run lint
+npm run build
+```

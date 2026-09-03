@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import Icon from './components/Icon'
-import { supabase } from './supabaseClient'
-import GapAnalysisModule from './competency/GapAnalysisModule'
-import { COMPETENCIES, estimateEmployeeCompetencies, scoreLabel } from './competency/framework'
-import { analyzeEmployee } from './competency/gapEngine'
-import { generateAIReply, buildGreeting } from './aiAssistant'
+import { supabase } from './services/supabaseClient'
+import GapAnalysisModule from './features/competency/GapAnalysisModule'
+import { COMPETENCIES, estimateEmployeeCompetencies, scoreLabel } from './features/competency/framework'
+import { analyzeEmployee } from './features/competency/gapEngine'
+import { generateAIReply, buildGreeting } from './services/aiAssistant'
 import {
   roleLabel,
   rolesLabel,
@@ -16,7 +16,7 @@ import {
   requireView,
   appendAudit,
   getAuditLog,
-} from './rbac'
+} from './security/rbac'
 
 // ---------------------------------------------------------------------------
 // localStorage helpers (self-contained storage, no backend required)
