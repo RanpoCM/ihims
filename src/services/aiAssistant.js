@@ -6,8 +6,8 @@
 // return. It uses deterministic analysis from the gap engine plus a keyword
 // intent matcher, so answers are reproducible and based on real numbers.
 // ===========================================================================
-import { analyzeWorkforce } from './competency/gapEngine'
-import { roleLabel, canEditModule } from './rbac'
+import { analyzeWorkforce } from '../features/competency/gapEngine'
+import { roleLabel, canEditModule } from '../security/rbac'
 
 // ---------------------------------------------------------------------------
 // Intent definitions — each maps keywords to a handler producing a grounded reply
