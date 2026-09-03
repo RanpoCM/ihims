@@ -1601,14 +1601,45 @@ default:
             </button>
             {/* Trusted device indicator */}
             {trustedDevice ? (
-              <span title={`This device is trusted for ${trustDaysLeft ?? 7} more day(s). OTP will not be required on next login.`} style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                fontSize: 11, fontWeight: 600, color: '#059669',
-                background: '#ecfdf5', border: '1px solid #6ee7b7',
-                borderRadius: 999, padding: '3px 10px', cursor: 'default',
-              }}>
-                🔒 Trusted · {trustDaysLeft ?? 7}d
-              </span>
+              <span
+  title={`This device is trusted for ${trustDaysLeft ?? 7} more day(s). OTP will not be required on your next login.`}
+  style={{
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 7,
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#047857',
+    background: '#f0fdf4',
+    border: '1px solid #86efac',
+    borderRadius: 999,
+    padding: '5px 10px',
+    cursor: 'default',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.2s ease',
+  }}
+>
+  <span
+    style={{
+      width: 6,
+      height: 6,
+      flexShrink: 0,
+      borderRadius: '50%',
+      backgroundColor: '#22c55e',
+    }}
+  />
+
+  <span>Trusted device</span>
+
+  <span
+    style={{
+      color: '#059669',
+      fontWeight: 700,
+    }}
+  >
+    · {trustDaysLeft ?? 7}d
+  </span>
+</span>
             ) : null}
 <NotificationBell
               announcements={announcements}
