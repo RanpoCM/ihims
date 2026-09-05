@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { COMPETENCIES, scoreLabel, AI_READINESS_DIMENSIONS, aiReadinessClass } from './framework'
-import { analyzeWorkforce } from './gapEngine'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { COMPETENCIES, scoreLabel, AI_READINESS_DIMENSIONS, aiReadinessClass, requiredLevelsForRole, requiredLevelsSource, inferRequiredLevels, getRoleProfileOverrides, setRoleProfileOverride, clearRoleProfileOverride } from './framework'
+import { analyzeWorkforce, generateAIEnhancedRecommendation, recordGapSnapshot, getGapSnapshots, clearGapSnapshots } from './gapEngine'
 
 // Small presentational helpers
 // Animated bar: width animates from 0 to target on mount / value change.
@@ -54,8 +54,23 @@ const PriorityPill = ({ label }) => (
 )
 
 // Employee Dashboard
-function EmployeeDashboard({ analysis }) {
+function EmployeeDashboard({ analysis, apiKey }) {
   const a = analysis
+  const [aiRecs, setAiRecs] = useState({}) // competencyId -> { text, loading, error }
+
+  const requestAIRec = async (gap) => {
+    if (!apiKey) {
+      setAiRecs((prev) => ({ ...prev, [gap.competencyId]: { error: 'No API key configured. Add one in the Role Profiles tab.' } }))
+      return
+    }
+    setAiRecs((prev) => ({ ...prev, [gap.competencyId]: { loading: true } }))
+    try {
+      const text = await generateAIEnhancedRecommendation(a.employee, gap, apiKey)
+      setAiRecs((prev) => ({ ...prev, [gap.competencyId]: { text } }))
+    } catch (err) {
+      setAiRecs((prev) => ({ ...prev, [gap.competencyId]: { error: err.message || 'AI recommendation failed.' } }))
+    }
+  }
   return (
     <div className="gap-dash">
       <div className="gap-profile">
@@ -166,8 +181,29 @@ function EmployeeDashboard({ analysis }) {
                       ))}
                     </ul>
                     {g.recommendation.certification ? (
-                      <div className="gap-rec-cert">🎓 Target certification: {g.recommendation.certification}</div>
+                      <div className="gap-rec-cert">Target certification: {g.recommendation.certification}</div>
                     ) : null}
+                    {/* AI-enhanced recommendation button */}
+                    <div style={{ marginTop: 10 }}>
+                      {aiRecs[g.competencyId]?.loading ? (
+                        <div style={{ fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>Generating AI recommendation…</div>
+                      ) : aiRecs[g.competencyId]?.text ? (
+                        <div style={{ marginTop: 6, padding: '10px 12px', background: 'var(--primary-soft)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, lineHeight: 1.6 }}>
+                          <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)', display: 'block', marginBottom: 4 }}>AI-Enhanced Recommendation</strong>
+                          {aiRecs[g.competencyId].text}
+                        </div>
+                      ) : aiRecs[g.competencyId]?.error ? (
+                        <div style={{ fontSize: 12, color: '#dc2626' }}>{aiRecs[g.competencyId].error}</div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => requestAIRec(g)}
+                          style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid var(--primary)', background: 'var(--primary-soft)', color: 'var(--primary)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
+                        >
+                          ✦ Get AI Recommendation
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ) : null}
               </li>
@@ -388,6 +424,75 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
   const [view, setView] = useState('employee')
   const [selectedId, setSelectedId] = useState(null)
 
+  // API key for AI-enhanced recommendations (stored locally, admin-set)
+  const API_KEY_STORE = 'ihims_anthropic_key'
+  const [apiKey, setApiKey] = useState(() => {
+    try { return localStorage.getItem(API_KEY_STORE) || '' } catch { return '' }
+  })
+  const [apiKeyDraft, setApiKeyDraft] = useState('')
+  const [apiKeyMsg, setApiKeyMsg] = useState('')
+
+  const saveApiKey = () => {
+    try {
+      localStorage.setItem(API_KEY_STORE, apiKeyDraft.trim())
+      setApiKey(apiKeyDraft.trim())
+      setApiKeyMsg('API key saved.')
+      setApiKeyDraft('')
+      setTimeout(() => setApiKeyMsg(''), 3000)
+    } catch { setApiKeyMsg('Failed to save key.') }
+  }
+
+  const clearApiKey = () => {
+    try {
+      localStorage.removeItem(API_KEY_STORE)
+      setApiKey('')
+      setApiKeyMsg('API key cleared.')
+      setTimeout(() => setApiKeyMsg(''), 3000)
+    } catch { setApiKeyMsg('Failed to clear key.') }
+  }
+
+  // Trend snapshots
+  const [snapshots, setSnapshots] = useState(() => getGapSnapshots())
+  const [snapshotMsg, setSnapshotMsg] = useState('')
+
+  const takeSnapshot = () => {
+    recordGapSnapshot(employees, recognitionByEmployee)
+    setSnapshots(getGapSnapshots())
+    setSnapshotMsg('Snapshot recorded for ' + new Date().toLocaleDateString())
+    setTimeout(() => setSnapshotMsg(''), 3000)
+  }
+
+  // Role profile overrides
+  const [overrides, setOverrides] = useState(() => getRoleProfileOverrides())
+  const [editingRole, setEditingRole] = useState(null)
+  const [editDraft, setEditDraft] = useState({})
+  const [overrideMsg, setOverrideMsg] = useState('')
+
+  const uniqueRoles = useMemo(() => [...new Set(employees.map(e => e.role))].sort(), [employees])
+
+  const startEditRole = (role) => {
+    const current = requiredLevelsForRole(role, employees.find(e => e.role === role)?.department)
+    setEditDraft({ ...current })
+    setEditingRole(role)
+    setOverrideMsg('')
+  }
+
+  const saveRoleOverride = () => {
+    setRoleProfileOverride(editingRole, editDraft)
+    const next = getRoleProfileOverrides()
+    setOverrides(next)
+    setEditingRole(null)
+    setOverrideMsg(`Profile for "${editingRole}" saved as override.`)
+    setTimeout(() => setOverrideMsg(''), 3000)
+  }
+
+  const clearOverride = (role) => {
+    clearRoleProfileOverride(role)
+    setOverrides(getRoleProfileOverrides())
+    setOverrideMsg(`Override for "${role}" removed — back to auto-inference.`)
+    setTimeout(() => setOverrideMsg(''), 3000)
+  }
+
   const recognitionByEmployee = useMemo(() => {
     const map = {}
     recognitionAwards.forEach((r) => {
@@ -397,7 +502,6 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
   }, [recognitionAwards])
 
   const workforce = useMemo(() => analyzeWorkforce(employees, recognitionByEmployee), [employees, recognitionByEmployee])
-
   const selected = workforce.analyses.find((a) => a.employee.id === selectedId) || workforce.analyses[0]
 
   const tabs = [
@@ -405,6 +509,8 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
     { id: 'manager', label: 'Manager Dashboard' },
     { id: 'hr', label: 'HR Dashboard' },
     { id: 'executive', label: 'Executive Dashboard' },
+    { id: 'roleProfiles', label: 'Role Profiles' },
+    { id: 'trends', label: 'Trends' },
   ]
 
   return (
@@ -430,12 +536,193 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
               ))}
             </select>
           </div>
-          {selected && <EmployeeDashboard analysis={selected} />}
+          {selected && <EmployeeDashboard analysis={selected} apiKey={apiKey} />}
         </div>
       )}
       {view === 'manager' && <ManagerDashboard workforce={workforce} />}
       {view === 'hr' && <HRDashboard workforce={workforce} />}
       {view === 'executive' && <ExecutiveDashboard workforce={workforce} />}
+
+      {/* ── ROLE PROFILES TAB ── */}
+      {view === 'roleProfiles' && (
+        <div className="gap-view">
+          <div className="gap-panel">
+            <h4>Role Competency Profiles</h4>
+            <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12 }}>
+              These are the required competency levels used by the gap engine. Profiles are sourced from: an admin override (highest priority), the built-in expert table, or the automated keyword classifier. You can review and adjust any auto-generated profile here.
+            </p>
+            {overrideMsg && <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--primary-soft)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, color: 'var(--primary)' }}>{overrideMsg}</div>}
+            <table className="gap-table">
+              <thead>
+                <tr>
+                  <th>Role</th>
+                  <th>Source</th>
+                  <th>Clinical</th>
+                  <th>Leadership</th>
+                  <th>Technical</th>
+                  <th>Compliance</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {uniqueRoles.map((role) => {
+                  const dept = employees.find(e => e.role === role)?.department
+                  const levels = requiredLevelsForRole(role, dept)
+                  const source = requiredLevelsSource(role)
+                  const srcColor = source === 'override' ? '#16a34a' : source === 'explicit' ? '#2563eb' : '#d97706'
+                  const srcLabel = source === 'override' ? 'Admin Override' : source === 'explicit' ? 'Built-in' : 'Auto-Inferred'
+                  return (
+                    <tr key={role}>
+                      <td><strong>{role}</strong></td>
+                      <td><span style={{ fontSize: 11, fontWeight: 700, color: srcColor, background: srcColor + '18', borderRadius: 999, padding: '2px 8px' }}>{srcLabel}</span></td>
+                      <td>{levels.clinicalSkills}</td>
+                      <td>{levels.leadership}</td>
+                      <td>{levels.technicalSkills}</td>
+                      <td>{levels.compliance}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button className="btn-edit" onClick={() => startEditRole(role)}>Edit</button>
+                          {source === 'override' && <button className="btn-delete" onClick={() => clearOverride(role)}>Reset</button>}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Edit modal */}
+          {editingRole && (
+            <div className="modal-overlay" onClick={() => setEditingRole(null)}>
+              <div className="modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h3>Edit Required Levels — {editingRole}</h3>
+                  <button className="modal-close" onClick={() => setEditingRole(null)}>&times;</button>
+                </div>
+                <div className="modal-body">
+                  <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 14 }}>Set the required competency level (1–5) for each area. Saving creates an admin override that takes priority over auto-inference.</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {COMPETENCIES.map((c) => (
+                      <label key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
+                        <span>{c.name}</span>
+                        <input
+                          type="number" min="1" max="5"
+                          value={editDraft[c.id] ?? 3}
+                          onChange={e => setEditDraft(prev => ({ ...prev, [c.id]: Math.max(1, Math.min(5, parseInt(e.target.value) || 3)) }))}
+                          style={{ width: 52, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', textAlign: 'center' }}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn-cancel" onClick={() => setEditingRole(null)}>Cancel</button>
+                  <button className="btn-save" onClick={saveRoleOverride}>Save Override</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* API key section */}
+          <div className="gap-panel" style={{ marginTop: 16 }}>
+            <h4>AI-Enhanced Recommendations</h4>
+            <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 10 }}>
+              Enter your Anthropic API key to enable LLM-generated recommendations on the Employee Dashboard.
+              The key is stored only in this browser's localStorage.{' '}
+              <strong>Do not use a production key here</strong> — see the security note in gapEngine.js.
+            </p>
+            {apiKey ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, color: '#16a34a', fontWeight: 600 }}>✓ API key configured</span>
+                <button className="btn-delete" onClick={clearApiKey}>Clear Key</button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  type="password"
+                  placeholder="sk-ant-..."
+                  value={apiKeyDraft}
+                  onChange={e => setApiKeyDraft(e.target.value)}
+                  style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, minWidth: 200 }}
+                />
+                <button className="btn-save" onClick={saveApiKey} disabled={!apiKeyDraft.trim()}>Save Key</button>
+              </div>
+            )}
+            {apiKeyMsg && <div style={{ marginTop: 8, fontSize: 13, color: 'var(--primary)' }}>{apiKeyMsg}</div>}
+          </div>
+        </div>
+      )}
+
+      {/* ── TRENDS TAB ── */}
+      {view === 'trends' && (
+        <div className="gap-view">
+          <div className="gap-panel">
+            <h4>Competency Trend Tracking</h4>
+            <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12 }}>
+              Each snapshot records the org-wide competency index, AI readiness, critical gap count, and succession-ready count at a point in time. Take a snapshot periodically (e.g. monthly after a training cycle) to track whether gaps are closing.
+            </p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+              <button className="btn-save" onClick={takeSnapshot}>Record Snapshot Now</button>
+              {snapshots.length > 0 && (
+                <button className="btn-delete" onClick={() => { clearGapSnapshots(); setSnapshots([]) }}>Clear History</button>
+              )}
+              {snapshotMsg && <span style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 600 }}>{snapshotMsg}</span>}
+            </div>
+            {snapshots.length === 0 ? (
+              <div className="attention-empty">No snapshots yet — click "Record Snapshot Now" to start tracking trends.</div>
+            ) : (
+              <>
+                {/* Mini trend chart — pure CSS bars */}
+                <div style={{ marginBottom: 20 }}>
+                  <h5 style={{ fontSize: 13, marginBottom: 8 }}>Org Competency Index over time</h5>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80, background: 'var(--surface)', borderRadius: 8, padding: '8px 8px 0' }}>
+                    {snapshots.slice(-30).map((s, i) => (
+                      <div key={i} title={`${s.date}: ${s.orgCompetencyIndex}%`} style={{ flex: 1, background: 'var(--primary)', borderRadius: '3px 3px 0 0', height: `${s.orgCompetencyIndex}%`, minWidth: 4, transition: 'height 0.3s', opacity: 0.7 + (i / snapshots.length) * 0.3 }} />
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                    <span>{snapshots[0]?.date}</span>
+                    <span>{snapshots[snapshots.length - 1]?.date}</span>
+                  </div>
+                </div>
+                <table className="gap-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Org Competency</th>
+                      <th>AI Readiness</th>
+                      <th>Critical Gaps</th>
+                      <th>Succession Ready</th>
+                      <th>Employees</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...snapshots].reverse().map((s, i) => {
+                      const prev = snapshots[snapshots.length - 2 - i]
+                      const delta = (cur, pr) => {
+                        if (!pr) return null
+                        const d = cur - pr
+                        return d === 0 ? null : <span style={{ color: d > 0 ? '#16a34a' : '#dc2626', fontSize: 11, marginLeft: 4 }}>{d > 0 ? '▲' : '▼'}{Math.abs(d)}</span>
+                      }
+                      return (
+                        <tr key={s.date}>
+                          <td>{s.date}</td>
+                          <td>{s.orgCompetencyIndex}% {delta(s.orgCompetencyIndex, prev?.orgCompetencyIndex)}</td>
+                          <td>{s.orgAIReadiness}% {delta(s.orgAIReadiness, prev?.orgAIReadiness)}</td>
+                          <td>{s.criticalGapCount} {delta(-s.criticalGapCount, prev ? -prev.criticalGapCount : null)}</td>
+                          <td>{s.successionReady} {delta(s.successionReady, prev?.successionReady)}</td>
+                          <td>{s.employeeCount}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
