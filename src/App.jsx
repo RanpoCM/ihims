@@ -6264,14 +6264,67 @@ const normalized = otp.trim()
                   <h2 style={{ fontSize:16, marginBottom:4, color:'#0f172a' }}>End-User License Agreement</h2>
                   <p style={{ color:'#6b7280', marginBottom:16 }}>Effective: {new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})} · IHIMS</p>
                   {[
-                    ['1. Grant of License','A limited, non-exclusive, non-transferable license is granted to the subscribing healthcare institution for internal HR management purposes only. This does not convey ownership of the software.'],
-                    ['2. Intellectual Property','IHIMS and all its components are the intellectual property of the development team and Bestlink College of the Philippines. Copying, modifying, distributing, or reverse-engineering without written consent is prohibited.'],
-                    ['3. Data Ownership','All institutional data entered into IHIMS remains the sole property of the subscribing institution. The development team claims no ownership over institutional data.'],
-                    ['4. AI Disclaimer','AI-generated outputs are for decision-support only. The development team makes no warranty regarding accuracy or fitness for a particular purpose of any AI-generated insight.'],
-                    ['5. No Warranty','IHIMS is provided "as is." The development team does not warrant uninterrupted or error-free operation. The institution is responsible for data backup and security measures.'],
-                    ['6. Limitation of Liability','To the fullest extent permitted by Philippine law, the development team shall not be liable for indirect, incidental, or consequential damages arising from use of IHIMS.'],
-                    ['7. Governing Law','Governed by the laws of the Republic of the Philippines. Contact the IHIMS development team through Bestlink College of the Philippines for any Agreement questions.'],
-                  ].map(([h,p])=>(
+  [
+    '1. Grant of License',
+    'A limited, non-exclusive, non-transferable, and revocable license is granted to the subscribing healthcare institution to access and use IHIMS solely for its authorized internal human resource management and administrative purposes. This license does not transfer or convey any ownership, title, or intellectual property rights in IHIMS to the subscribing institution.'
+  ],
+
+  [
+    '2. Intellectual Property',
+    'IHIMS, including its software, source code, interface designs, features, documentation, algorithms, and other original components, is the intellectual property of the development team and Bestlink College of the Philippines, subject to applicable intellectual property laws and agreements. No part of IHIMS may be copied, reproduced, modified, distributed, sublicensed, reverse-engineered, or otherwise used outside the scope of this Agreement without prior written authorization.'
+  ],
+
+  [
+    '3. Institutional Data Ownership',
+    'All personnel, employee, organizational, and other institutional data entered into or generated through IHIMS remains the property of the subscribing institution, subject to applicable Philippine laws and regulations. The development team and Bestlink College of the Philippines do not claim ownership of institutional data solely by virtue of providing or maintaining IHIMS.'
+  ],
+
+  [
+    '4. Data Privacy and Security',
+    'The subscribing institution is responsible for ensuring that its collection, use, storage, disclosure, and processing of personal and sensitive personal information through IHIMS comply with applicable Philippine data privacy laws and regulations, including the Data Privacy Act of 2012 and its implementing rules and regulations. The institution is also responsible for maintaining appropriate user access controls, account security, and authorized use of the system.'
+  ],
+
+  [
+    '5. AI-Generated Insights Disclaimer',
+    'Certain IHIMS features may use artificial intelligence or automated processing to generate summaries, recommendations, classifications, or other insights. AI-generated outputs are intended solely to support, and not replace, appropriate human judgment and institutional decision-making. Such outputs may contain errors, omissions, or inaccuracies and should be reviewed and validated by authorized personnel before being relied upon for employment, performance, or administrative decisions.'
+  ],
+
+  [
+    '6. No Warranty',
+    'IHIMS is provided on an "as is" and "as available" basis, to the extent permitted by applicable law. The development team does not guarantee that the system will be continuously available, uninterrupted, completely secure, or entirely free from errors, defects, or technical issues. The subscribing institution is responsible for maintaining appropriate internal procedures, authorized access controls, and backup measures for its institutional data.'
+  ],
+
+  [
+    '7. Limitation of Liability',
+    'To the fullest extent permitted by applicable Philippine law, the development team and Bestlink College of the Philippines shall not be liable for indirect, incidental, special, or consequential damages arising from or related to the authorized use of IHIMS, including loss of data, business interruption, or loss of anticipated benefits, except where such liability cannot lawfully be excluded or limited.'
+  ],
+
+  [
+    '8. Acceptable Use',
+    'The subscribing institution and its authorized users shall use IHIMS only for lawful and legitimate institutional purposes. Users shall not attempt to gain unauthorized access, interfere with system operations, circumvent security controls, introduce malicious code, misuse system functionality, or access information beyond their authorized permissions.'
+  ],
+
+  [
+    '9. Account and Access Responsibility',
+    'The subscribing institution is responsible for managing authorized user accounts and ensuring that credentials are kept confidential and are not shared with unauthorized individuals. Any suspected unauthorized access, compromised account, or security incident involving IHIMS should be reported promptly to the designated IHIMS development or system administration team.'
+  ],
+
+  [
+    '10. Changes and Availability',
+    'The development team reserves the right to update, modify, improve, suspend, or discontinue portions of IHIMS when reasonably necessary for maintenance, security, technical improvements, or system development. Where practicable, material changes affecting system availability or functionality will be communicated to the subscribing institution.'
+  ],
+
+  [
+    '11. Governing Law',
+    'This Agreement shall be governed by and interpreted in accordance with the laws of the Republic of the Philippines. Any questions, concerns, or requests relating to this Agreement or the use of IHIMS may be directed to the designated IHIMS development or administration team through Bestlink College of the Philippines.'
+  ],
+
+  [
+    '12. Acceptance of Terms',
+    'By accessing or using IHIMS, the subscribing institution and its authorized users acknowledge that they have read, understood, and agreed to comply with the terms and conditions set forth in this Agreement, subject to applicable Philippine laws and regulations.'
+  ]
+]
+.map(([h,p])=>(
                     <div key={h} style={{ marginBottom:16 }}>
                       <h4 style={{ color:'#16a34a', marginBottom:4 }}>{h}</h4>
                       <p style={{ margin:0 }}>{p}</p>
