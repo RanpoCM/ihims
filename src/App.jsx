@@ -6153,7 +6153,7 @@ const normalized = otp.trim()
 
             {/* Trust notice */}
             <div style={{ marginTop:16, padding:'10px 14px', background:'rgba(34,197,94,0.06)', border:'1px solid rgba(34,197,94,0.15)', borderRadius:8, display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ fontSize:15 }}>🔒</span>
+              <span style={{ fontSize:15 }}></span>
               <span style={{ color:'#4ade80', fontSize:11, lineHeight:1.5, opacity:0.8 }}>
                 After OTP verification, this device is trusted for 7 days — password only on next login.
               </span>
