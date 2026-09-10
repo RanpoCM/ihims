@@ -6245,13 +6245,19 @@ const normalized = otp.trim()
                   <h2 style={{ fontSize:16, marginBottom:4, color:'#0f172a' }}>Terms of Access</h2>
                   <p style={{ color:'#6b7280', marginBottom:16 }}>Effective: {new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})} · IHIMS</p>
                   {[
-                    ['1. System Overview','IHIMS is a web-based platform for authorised personnel of small to medium-sized healthcare institutions in the Philippines. It supports workforce management, performance monitoring, competency gap analysis, and learning management. Developed as an academic capstone project by students of Bestlink College of the Philippines.'],
-                    ['2. Authorised Users','Access is strictly limited to individuals whose accounts have been created by a system administrator. Roles include Hospital Administrator, HR Personnel, and Staff. Unauthorised access or credential sharing is strictly prohibited.'],
-                    ['3. Acceptable Use','Users must not access records outside their authorised scope, circumvent RBAC controls, violate RA 10173, share employee data without authorisation, or use AI outputs as the sole basis for employment decisions.'],
-                    ['4. Data Privacy — RA 10173','All employee records are personal data under the Data Privacy Act of 2012. Users must handle data per applicable Philippine privacy regulations. Data must not be disclosed to unauthorised parties.'],
-                    ['5. AI Limitation','The AI Competency Gap Analysis is a decision-support tool only. All employment decisions must involve qualified HR professionals and comply with Philippine labour law.'],
-                    ['6. Security','Each user is responsible for the confidentiality of their credentials. OTP codes must not be shared. Report suspected unauthorised access to your administrator immediately.'],
-                    ['7. Governing Law','Governed by Philippine law including RA 10173, the Labor Code, and applicable DOH and PRC regulations.'],
+                   ['1. System Overview','IHIMS is a web-based platform designed for authorised personnel of small to medium-sized healthcare institutions in the Philippines. It supports workforce management, performance monitoring, competency gap analysis, and learning management. IHIMS was developed as an academic capstone project by students of Bestlink College of the Philippines.'],
+
+['2. Authorised Users','Access to IHIMS is strictly limited to individuals whose accounts have been created and authorised by a system administrator. Permitted roles include Hospital Administrator, HR Personnel, and Staff. Unauthorised access, account misuse, and sharing of login credentials are strictly prohibited.'],
+
+['3. Acceptable Use','Users must only access information and system functions within their authorised scope. Users must not attempt to bypass or circumvent role-based access controls (RBAC), access or disclose employee records without proper authorisation, violate Republic Act No. 10173 (Data Privacy Act of 2012), or use AI-generated outputs as the sole basis for employment-related decisions.'],
+
+['4. Data Privacy — RA 10173','All employee records and related information processed through IHIMS shall be treated as personal data and handled in accordance with Republic Act No. 10173 (Data Privacy Act of 2012) and other applicable Philippine data privacy regulations. Users must protect personal information from unauthorised access, use, disclosure, alteration, or loss and must not disclose employee information to unauthorised individuals or parties.'],
+
+['5. AI Limitation','The AI Competency Gap Analysis is intended solely as a decision-support tool and does not replace professional judgement. AI-generated results may contain limitations or inaccuracies and must be reviewed and validated by qualified HR professionals. All employment and personnel decisions must comply with applicable Philippine labour laws, regulations, and institutional policies.'],
+
+['6. Security','Each user is responsible for maintaining the confidentiality and security of their account credentials. Passwords, OTP codes, and other authentication information must never be shared with another person. Users must immediately report suspected unauthorised access, compromised credentials, or other security incidents to the system administrator or designated administrator.'],
+
+['7. Governing Law','The use and operation of IHIMS shall be governed by the applicable laws and regulations of the Republic of the Philippines, including Republic Act No. 10173 (Data Privacy Act of 2012), the Labor Code of the Philippines, and applicable regulations and guidelines issued by the Department of Health (DOH), Professional Regulation Commission (PRC), and other relevant government authorities.'],
                   ].map(([h,p])=>(
                     <div key={h} style={{ marginBottom:16 }}>
                       <h4 style={{ color:'#16a34a', marginBottom:4 }}>{h}</h4>
