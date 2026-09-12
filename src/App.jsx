@@ -1,11 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import './App.css'
 import Icon from './components/Icon'
-import { supabase } from './services/supabaseClient'
-import GapAnalysisModule from './features/competency/GapAnalysisModule'
-import { COMPETENCIES, estimateEmployeeCompetencies, scoreLabel } from './features/competency/framework'
-import { analyzeEmployee } from './features/competency/gapEngine'
-import { generateAIReply, buildGreeting } from './services/aiAssistant'
+import { supabase } from './supabaseClient'
+import {
+  fetchEmployees as sbFetchEmployees,
+  createEmployee as sbCreateEmployee,
+  updateEmployee as sbUpdateEmployee,
+  deleteEmployee as sbDeleteEmployee,
+  bulkDeleteEmployees as sbBulkDeleteEmployees,
+  updateEmployeePhoto as sbUpdateEmployeePhoto,
+  updateCompetencyNotes as sbUpdateCompetencyNotes,
+  updateEmployeeProfile as sbUpdateEmployeeProfile,
+  markTrainingCompletedForEmployee as sbMarkTrainingCompleted,
+} from './supabaseEmployees'
+import GapAnalysisModule from './competency/GapAnalysisModule'
+import { COMPETENCIES, estimateEmployeeCompetencies, scoreLabel } from './competency/framework'
+import { analyzeEmployee } from './competency/gapEngine'
+import { generateAIReply, buildGreeting } from './aiAssistant'
 import {
   roleLabel,
   rolesLabel,
@@ -16,7 +27,7 @@ import {
   requireView,
   appendAudit,
   getAuditLog,
-} from './security/rbac'
+} from './rbac'
 
 // ---------------------------------------------------------------------------
 // localStorage helpers (self-contained storage, no backend required)
@@ -857,7 +868,54 @@ function AppContent({ role, roles, userName, userEmail, myPhoto, onUpdateMyPhoto
 
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
+  // ── Employees — Supabase-backed with localStorage fallback ────────────────
+  // On mount we fetch from Supabase. If the fetch fails (no connection, RLS
+  // block, missing env vars) we transparently fall back to localStorage so
+  // the app stays usable during development without a live Supabase project.
   const [employees, setEmployees] = useState(() => getStoredData('ihims_employees', initialEmployees))
+  const [employeesLoading, setEmployeesLoading] = useState(false)
+  const [employeesError, setEmployeesError] = useState(null)
+  const [usingSupabase, setUsingSupabase] = useState(false)
+
+  const loadEmployees = useCallback(async () => {
+    setEmployeesLoading(true)
+    setEmployeesError(null)
+    try {
+      const rows = await sbFetchEmployees()
+      // Only switch to Supabase if we actually got data back — an empty
+      // result on a fresh project shouldn't wipe the seeded localStorage data.
+      if (rows.length > 0) {
+        setEmployees(rows)
+        setUsingSupabase(true)
+      } else {
+        // Supabase connected but table empty — seed it with localStorage data
+        // so the user's existing work isn't lost.
+        const local = getStoredData('ihims_employees', initialEmployees)
+        if (local.length > 0) {
+          // Bulk-insert existing records into Supabase (best-effort, don't block)
+          Promise.all(local.map(emp => sbCreateEmployee(emp))).then(created => {
+            setEmployees(created.filter(Boolean))
+            setUsingSupabase(true)
+          }).catch(() => {
+            // If seeding fails (e.g. RLS blocks inserts) just stay on localStorage
+            setEmployees(local)
+          })
+        } else {
+          setUsingSupabase(true)
+        }
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[IHIMS] Supabase employee fetch failed, using localStorage:', err.message)
+      setEmployeesError(err.message)
+      setUsingSupabase(false)
+      // Keep whatever localStorage data we already have — don't overwrite
+    } finally {
+      setEmployeesLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadEmployees() }, [loadEmployees])
   const [trainingPrograms, setTrainingPrograms] = useState(() => getStoredData('ihims_training', initialTrainingPrograms))
   const [competencies, setCompetencies] = useState(() => getStoredData('ihims_competencies', initialCompetencies))
   const [recognitionAwards, setRecognitionAwards] = useState(() => getStoredData('ihims_recognition', initialRecognitionAwards))
@@ -974,25 +1032,57 @@ const actor = { name: userName || role, role, email: userEmail }
     return arr.length > 0 ? Math.max(...arr.map((x) => Number(x.id) || 0)) + 1 : 1
   }
 
-  const addEmployee = (emp) => {
+  // Employee write functions — use Supabase when available, localStorage fallback
+  const addEmployee = async (emp) => {
     requireEdit(roles, 'performance')
-    const newRow = { ...emp, id: nextId(employees) }
-    setEmployees((prev) => [...prev, newRow])
-    appendAudit({ user: actor.name, role, action: 'create', module: 'performance', detail: `Added employee "${newRow.name}"` })
+    try {
+      if (usingSupabase) {
+        const created = await sbCreateEmployee(emp)
+        setEmployees((prev) => [...prev, created])
+        appendAudit({ user: actor.name, role, action: 'create', module: 'performance', detail: `Added employee "${created.name}"` })
+      } else {
+        const newRow = { ...emp, id: nextId(employees) }
+        setEmployees((prev) => [...prev, newRow])
+        appendAudit({ user: actor.name, role, action: 'create', module: 'performance', detail: `Added employee "${newRow.name}" (localStorage)` })
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[IHIMS] addEmployee failed:', err.message)
+      throw err
+    }
   }
 
-  const updateEmployee = (id, data) => {
+  const updateEmployee = async (id, data) => {
     requireEdit(roles, 'performance')
     const target = employees.find((e) => e.id === id)
+    // Optimistic UI update immediately so the app feels instant
     setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, ...data } : e)))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'performance', detail: `Updated employee "${target?.name || id}"` })
+    try {
+      if (usingSupabase) {
+        await sbUpdateEmployee(id, data)
+      }
+      appendAudit({ user: actor.name, role, action: 'update', module: 'performance', detail: `Updated employee "${target?.name || id}"` })
+    } catch (err) {
+      // Roll back optimistic update on failure
+      setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, ...Object.fromEntries(Object.keys(data).map(k => [k, target?.[k]])) } : e)))
+      // eslint-disable-next-line no-console
+      console.error('[IHIMS] updateEmployee failed:', err.message)
+      throw err
+    }
   }
 
-  const deleteEmployee = (id) => {
+  const deleteEmployee = async (id) => {
     requireEdit(roles, 'performance')
     const target = employees.find((e) => e.id === id)
     setEmployees((prev) => prev.filter((e) => e.id !== id))
-    appendAudit({ user: actor.name, role, action: 'delete', module: 'performance', detail: `Deleted employee "${target?.name || id}"` })
+    try {
+      if (usingSupabase) await sbDeleteEmployee(id)
+      appendAudit({ user: actor.name, role, action: 'delete', module: 'performance', detail: `Deleted employee "${target?.name || id}"` })
+    } catch (err) {
+      // Restore on failure
+      if (target) setEmployees((prev) => [...prev, target])
+      throw err
+    }
   }
 
   const addTraining = (prog) => {
@@ -1191,24 +1281,38 @@ const deleteAccount = (id) => {
     appendAudit({ user: actor.name, role, action: 'delete', module: 'announcements', detail: `Removed announcement "${target?.title || id}"` })
   }
 
-  const bulkDeleteEmployees = (ids) => {
+  const bulkDeleteEmployees = async (ids) => {
     requireEdit(roles, 'performance')
     const remaining = employees.filter((e) => !ids.includes(e.id))
     setEmployees(remaining)
-    appendAudit({ user: actor.name, role, action: 'bulk_delete', module: 'performance', detail: `Bulk-deleted ${ids.length} employee record(s)` })
+    try {
+      if (usingSupabase) await sbBulkDeleteEmployees(ids)
+      appendAudit({ user: actor.name, role, action: 'bulk_delete', module: 'performance', detail: `Bulk-deleted ${ids.length} employee record(s)` })
+    } catch (err) {
+      // Restore on failure
+      setEmployees((prev) => {
+        const deletedOnes = employees.filter(e => ids.includes(e.id))
+        return [...prev, ...deletedOnes]
+      })
+      throw err
+    }
   }
 
-// Update an employee's photo (or any settings-level field).
-  const updateEmployeePhoto = (id, photo) => {
+  // Update an employee's photo (or any settings-level field).
+  const updateEmployeePhoto = async (id, photo) => {
     requireEdit(roles, 'settings')
     const target = employees.find((e) => e.id === id)
     setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, photo } : e)))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'settings', detail: `Updated profile photo for "${target?.name || id}"` })
+    try {
+      if (usingSupabase) await sbUpdateEmployeePhoto(id, photo)
+      appendAudit({ user: actor.name, role, action: 'update', module: 'settings', detail: `Updated photo for "${target?.name || id}"` })
+    } catch (err) {
+      setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, photo: target?.photo ?? null } : e)))
+      throw err
+    }
   }
 
-// Update the logged-in user's own profile photo. The photo is persisted per
-  // user under its own localStorage key (keyed by email) so it survives logout
-  // and login, and is also kept in the session for immediate UI updates.
+  // Update the logged-in user's own profile photo.
   const updateMyPhoto = (photo) => {
     const s = getStoredSession()
     const next = { ...s, photo }
@@ -1317,34 +1421,41 @@ const deleteAccount = (id) => {
   }
 
   // ---- Competency qualitative notes ----------------------------------------
-  const updateCompetencyNotes = (employeeId, notes) => {
+  const updateCompetencyNotes = async (employeeId, notes) => {
     requireEdit(roles, 'competency')
     const target = employees.find((e) => e.id === employeeId)
     setEmployees((prev) => prev.map((e) => (e.id === employeeId ? { ...e, competencyNotes: notes } : e)))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'competency', detail: `Updated competency notes for "${target?.name || employeeId}"` })
+    try {
+      if (usingSupabase) await sbUpdateCompetencyNotes(employeeId, notes)
+      appendAudit({ user: actor.name, role, action: 'update', module: 'competency', detail: `Updated competency notes for "${target?.name || employeeId}"` })
+    } catch (err) {
+      setEmployees((prev) => prev.map((e) => (e.id === employeeId ? { ...e, competencyNotes: target?.competencyNotes ?? '' } : e)))
+      throw err
+    }
   }
 
   // ---- Employee profile fields (qualifications, employment info) -----------
-  const updateEmployeeProfile = (id, profileData) => {
+  const updateEmployeeProfile = async (id, profileData) => {
     requireEdit(roles, 'performance')
     const target = employees.find((e) => e.id === id)
     setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, ...profileData } : e)))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'performance', detail: `Updated profile for "${target?.name || id}"` })
+    try {
+      if (usingSupabase) await sbUpdateEmployeeProfile(id, profileData)
+      appendAudit({ user: actor.name, role, action: 'update', module: 'performance', detail: `Updated profile for "${target?.name || id}"` })
+    } catch (err) {
+      setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, ...Object.fromEntries(Object.keys(profileData).map(k => [k, target?.[k]])) } : e)))
+      throw err
+    }
   }
 
   // ---- Training completion feedback loop -----------------------------------
-  // When HR marks a training as completed for an employee, offer to bump
-  // the employee's training score and suggest a competency score nudge for
-  // each competency linked to that program.
-  const markTrainingCompletedForEmployee = (employeeId, programId, competencyScoreNudge) => {
+  const markTrainingCompletedForEmployee = async (employeeId, programId, competencyScoreNudge) => {
     requireEdit(roles, 'learning')
     const program = trainingPrograms.find((p) => p.id === programId)
     const emp = employees.find((e) => e.id === employeeId)
     if (!emp || !program) return
 
-    // Bump training score by up to 3 points (capped at 100)
     const newTraining = Math.min(100, (emp.training || 0) + 3)
-    // If caller provided a competency nudge value, apply it (capped at 100)
     const newCompetency = competencyScoreNudge != null
       ? Math.min(100, Math.max(0, competencyScoreNudge))
       : emp.competency
@@ -1352,7 +1463,15 @@ const deleteAccount = (id) => {
     setEmployees((prev) => prev.map((e) =>
       e.id === employeeId ? { ...e, training: newTraining, competency: newCompetency } : e
     ))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'learning', detail: `Marked "${emp.name}" as completed for "${program.title}" — training score updated to ${newTraining}%` })
+    try {
+      if (usingSupabase) await sbMarkTrainingCompleted(employeeId, competencyScoreNudge)
+      appendAudit({ user: actor.name, role, action: 'update', module: 'learning', detail: `Marked "${emp.name}" as completed for "${program.title}" — training score updated to ${newTraining}%` })
+    } catch (err) {
+      setEmployees((prev) => prev.map((e) =>
+        e.id === employeeId ? { ...e, training: emp.training, competency: emp.competency } : e
+      ))
+      throw err
+    }
   }
 
 const renderModule = () => {
@@ -1587,7 +1706,10 @@ default:
         </div>
 <div className="header-info">
           <LiveClock />
-          <span className="status-indicator"><span className="status-dot"></span> Online</span>
+          <span className={`status-indicator${usingSupabase ? '' : ' status-indicator--local'}`} title={usingSupabase ? 'Connected to Supabase — data persists across devices' : (employeesError ? `Supabase unavailable: ${employeesError}` : 'Using local storage — data stored in this browser only')}>
+            <span className="status-dot"></span>
+            {employeesLoading ? 'Connecting…' : usingSupabase ? 'Supabase Connected' : 'Local Storage'}
+          </span>
           <div className="header-actions">
             {/* Theme toggle */}
             <button
@@ -1601,45 +1723,14 @@ default:
             </button>
             {/* Trusted device indicator */}
             {trustedDevice ? (
-              <span
-  title={`This device is trusted for ${trustDaysLeft ?? 7} more day(s). OTP will not be required on your next login.`}
-  style={{
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 7,
-    fontSize: 11,
-    fontWeight: 600,
-    color: '#047857',
-    background: '#f0fdf4',
-    border: '1px solid #86efac',
-    borderRadius: 999,
-    padding: '5px 10px',
-    cursor: 'default',
-    whiteSpace: 'nowrap',
-    transition: 'all 0.2s ease',
-  }}
->
-  <span
-    style={{
-      width: 6,
-      height: 6,
-      flexShrink: 0,
-      borderRadius: '50%',
-      backgroundColor: '#22c55e',
-    }}
-  />
-
-  <span>Trusted device</span>
-
-  <span
-    style={{
-      color: '#059669',
-      fontWeight: 700,
-    }}
-  >
-    · {trustDaysLeft ?? 7}d
-  </span>
-</span>
+              <span title={`This device is trusted for ${trustDaysLeft ?? 7} more day(s). OTP will not be required on next login.`} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: 11, fontWeight: 600, color: '#059669',
+                background: '#ecfdf5', border: '1px solid #6ee7b7',
+                borderRadius: 999, padding: '3px 10px', cursor: 'default',
+              }}>
+                🔒 Trusted · {trustDaysLeft ?? 7}d
+              </span>
             ) : null}
 <NotificationBell
               announcements={announcements}
@@ -4679,6 +4770,76 @@ function RecognitionModule({ recognitionAwards, _employees, addRecognition, dele
 }
 
 // AI Guidance Bot - context-aware assistant that helps users navigate the system
+// ---------------------------------------------------------------------------
+// BotMessage — renders the AI assistant's plain-text reply as structured,
+// professionally styled output. Replaces emoji prefixes with real Icon
+// components and applies bold/line-break formatting so messages look
+// consistent across all platforms (no OS emoji rendering variation).
+// ---------------------------------------------------------------------------
+const BOT_ICON_MAP = {
+  '📊': { name: 'trendUp',      color: '#22c55e' },
+  '🏆': { name: 'recognition',  color: '#f59e0b' },
+  '⚠️': { name: 'warn',         color: '#f59e0b' },
+  '🔍': { name: 'search',       color: '#3b82f6' },
+  '🤖': { name: 'ai',           color: '#8b5cf6' },
+  '🎓': { name: 'learning',     color: '#22c55e' },
+  '🎯': { name: 'competency',   color: '#ef4444' },
+  '📅': { name: 'calendar',     color: '#3b82f6' },
+  '📈': { name: 'succession',   color: '#22c55e' },
+  '🏅': { name: 'medal',        color: '#f59e0b' },
+  '🏢': { name: 'accounts',     color: '#64748b' },
+  '💡': { name: 'spark',        color: '#f59e0b' },
+  '👥': { name: 'accounts',     color: '#3b82f6' },
+  '✅': { name: 'checkCircle',   color: '#22c55e' },
+  '😊': null, // strip — emoji smile has no structural meaning in a professional UI
+}
+
+// Find the leading emoji on a line (if any) and map it to an Icon
+const getLineIcon = (line) => {
+  for (const [emoji, iconCfg] of Object.entries(BOT_ICON_MAP)) {
+    if (line.startsWith(emoji)) {
+      return { icon: iconCfg, rest: line.slice(emoji.length).trimStart() }
+    }
+  }
+  return { icon: null, rest: line }
+}
+
+// Render **bold** spans inline
+const renderInline = (text) => {
+  const parts = text.split(/(\*\*[^*]+\*\*)/)
+  return parts.map((p, i) =>
+    p.startsWith('**') && p.endsWith('**')
+      ? <strong key={i} style={{ fontWeight: 700 }}>{p.slice(2, -2)}</strong>
+      : p
+  )
+}
+
+function BotMessage({ text }) {
+  const lines = text.split('\n')
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {lines.map((line, i) => {
+        if (!line.trim()) return <span key={i} style={{ height: 4 }} />
+        const { icon, rest } = getLineIcon(line)
+        const isBullet = rest.startsWith('•') || rest.startsWith('-')
+        const content = isBullet ? rest.slice(1).trimStart() : rest
+        return (
+          <span key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+            {icon ? (
+              <span style={{ flexShrink: 0, marginTop: 1, color: icon.color }}>
+                <Icon name={icon.name} size={13} />
+              </span>
+            ) : isBullet ? (
+              <span style={{ flexShrink: 0, marginTop: 5, width: 4, height: 4, borderRadius: '50%', background: 'currentColor', display: 'inline-block' }} />
+            ) : null}
+            <span style={{ flex: 1, lineHeight: 1.5 }}>{renderInline(content)}</span>
+          </span>
+        )
+      })}
+    </span>
+  )
+}
+
 function AIGuideBot({ role, activeModule, dataSummary, onNavigate }) {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([])
@@ -4787,7 +4948,9 @@ const _generateReply = (q, ctx) => {
           <div className="ai-bot-messages">
             {messages.map((m, i) => (
               <div key={i} className={`ai-bot-msg ${m.from}`}>
-                <span className="ai-bot-bubble">{m.text}</span>
+                <span className="ai-bot-bubble">
+                  {m.from === 'bot' ? <BotMessage text={m.text} /> : m.text}
+                </span>
               </div>
             ))}
           </div>
@@ -6153,7 +6316,7 @@ const normalized = otp.trim()
 
             {/* Trust notice */}
             <div style={{ marginTop:16, padding:'10px 14px', background:'rgba(34,197,94,0.06)', border:'1px solid rgba(34,197,94,0.15)', borderRadius:8, display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ fontSize:15 }}></span>
+              <span style={{ fontSize:15 }}>🔒</span>
               <span style={{ color:'#4ade80', fontSize:11, lineHeight:1.5, opacity:0.8 }}>
                 After OTP verification, this device is trusted for 7 days — password only on next login.
               </span>
@@ -6245,19 +6408,13 @@ const normalized = otp.trim()
                   <h2 style={{ fontSize:16, marginBottom:4, color:'#0f172a' }}>Terms of Access</h2>
                   <p style={{ color:'#6b7280', marginBottom:16 }}>Effective: {new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})} · IHIMS</p>
                   {[
-                   ['1. System Overview','IHIMS is a web-based platform designed for authorised personnel of small to medium-sized healthcare institutions in the Philippines. It supports workforce management, performance monitoring, competency gap analysis, and learning management. IHIMS was developed as an academic capstone project by students of Bestlink College of the Philippines.'],
-
-['2. Authorised Users','Access to IHIMS is strictly limited to individuals whose accounts have been created and authorised by a system administrator. Permitted roles include Hospital Administrator, HR Personnel, and Staff. Unauthorised access, account misuse, and sharing of login credentials are strictly prohibited.'],
-
-['3. Acceptable Use','Users must only access information and system functions within their authorised scope. Users must not attempt to bypass or circumvent role-based access controls (RBAC), access or disclose employee records without proper authorisation, violate Republic Act No. 10173 (Data Privacy Act of 2012), or use AI-generated outputs as the sole basis for employment-related decisions.'],
-
-['4. Data Privacy — RA 10173','All employee records and related information processed through IHIMS shall be treated as personal data and handled in accordance with Republic Act No. 10173 (Data Privacy Act of 2012) and other applicable Philippine data privacy regulations. Users must protect personal information from unauthorised access, use, disclosure, alteration, or loss and must not disclose employee information to unauthorised individuals or parties.'],
-
-['5. AI Limitation','The AI Competency Gap Analysis is intended solely as a decision-support tool and does not replace professional judgement. AI-generated results may contain limitations or inaccuracies and must be reviewed and validated by qualified HR professionals. All employment and personnel decisions must comply with applicable Philippine labour laws, regulations, and institutional policies.'],
-
-['6. Security','Each user is responsible for maintaining the confidentiality and security of their account credentials. Passwords, OTP codes, and other authentication information must never be shared with another person. Users must immediately report suspected unauthorised access, compromised credentials, or other security incidents to the system administrator or designated administrator.'],
-
-['7. Governing Law','The use and operation of IHIMS shall be governed by the applicable laws and regulations of the Republic of the Philippines, including Republic Act No. 10173 (Data Privacy Act of 2012), the Labor Code of the Philippines, and applicable regulations and guidelines issued by the Department of Health (DOH), Professional Regulation Commission (PRC), and other relevant government authorities.'],
+                    ['1. System Overview','IHIMS is a web-based platform for authorised personnel of small to medium-sized healthcare institutions in the Philippines. It supports workforce management, performance monitoring, competency gap analysis, and learning management. Developed as an academic capstone project by students of Bestlink College of the Philippines.'],
+                    ['2. Authorised Users','Access is strictly limited to individuals whose accounts have been created by a system administrator. Roles include Hospital Administrator, HR Personnel, and Staff. Unauthorised access or credential sharing is strictly prohibited.'],
+                    ['3. Acceptable Use','Users must not access records outside their authorised scope, circumvent RBAC controls, violate RA 10173, share employee data without authorisation, or use AI outputs as the sole basis for employment decisions.'],
+                    ['4. Data Privacy — RA 10173','All employee records are personal data under the Data Privacy Act of 2012. Users must handle data per applicable Philippine privacy regulations. Data must not be disclosed to unauthorised parties.'],
+                    ['5. AI Limitation','The AI Competency Gap Analysis is a decision-support tool only. All employment decisions must involve qualified HR professionals and comply with Philippine labour law.'],
+                    ['6. Security','Each user is responsible for the confidentiality of their credentials. OTP codes must not be shared. Report suspected unauthorised access to your administrator immediately.'],
+                    ['7. Governing Law','Governed by Philippine law including RA 10173, the Labor Code, and applicable DOH and PRC regulations.'],
                   ].map(([h,p])=>(
                     <div key={h} style={{ marginBottom:16 }}>
                       <h4 style={{ color:'#16a34a', marginBottom:4 }}>{h}</h4>
@@ -6270,67 +6427,14 @@ const normalized = otp.trim()
                   <h2 style={{ fontSize:16, marginBottom:4, color:'#0f172a' }}>End-User License Agreement</h2>
                   <p style={{ color:'#6b7280', marginBottom:16 }}>Effective: {new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})} · IHIMS</p>
                   {[
-  [
-    '1. Grant of License',
-    'A limited, non-exclusive, non-transferable, and revocable license is granted to the subscribing healthcare institution to access and use IHIMS solely for its authorized internal human resource management and administrative purposes. This license does not transfer or convey any ownership, title, or intellectual property rights in IHIMS to the subscribing institution.'
-  ],
-
-  [
-    '2. Intellectual Property',
-    'IHIMS, including its software, source code, interface designs, features, documentation, algorithms, and other original components, is the intellectual property of the development team and Bestlink College of the Philippines, subject to applicable intellectual property laws and agreements. No part of IHIMS may be copied, reproduced, modified, distributed, sublicensed, reverse-engineered, or otherwise used outside the scope of this Agreement without prior written authorization.'
-  ],
-
-  [
-    '3. Institutional Data Ownership',
-    'All personnel, employee, organizational, and other institutional data entered into or generated through IHIMS remains the property of the subscribing institution, subject to applicable Philippine laws and regulations. The development team and Bestlink College of the Philippines do not claim ownership of institutional data solely by virtue of providing or maintaining IHIMS.'
-  ],
-
-  [
-    '4. Data Privacy and Security',
-    'The subscribing institution is responsible for ensuring that its collection, use, storage, disclosure, and processing of personal and sensitive personal information through IHIMS comply with applicable Philippine data privacy laws and regulations, including the Data Privacy Act of 2012 and its implementing rules and regulations. The institution is also responsible for maintaining appropriate user access controls, account security, and authorized use of the system.'
-  ],
-
-  [
-    '5. AI-Generated Insights Disclaimer',
-    'Certain IHIMS features may use artificial intelligence or automated processing to generate summaries, recommendations, classifications, or other insights. AI-generated outputs are intended solely to support, and not replace, appropriate human judgment and institutional decision-making. Such outputs may contain errors, omissions, or inaccuracies and should be reviewed and validated by authorized personnel before being relied upon for employment, performance, or administrative decisions.'
-  ],
-
-  [
-    '6. No Warranty',
-    'IHIMS is provided on an "as is" and "as available" basis, to the extent permitted by applicable law. The development team does not guarantee that the system will be continuously available, uninterrupted, completely secure, or entirely free from errors, defects, or technical issues. The subscribing institution is responsible for maintaining appropriate internal procedures, authorized access controls, and backup measures for its institutional data.'
-  ],
-
-  [
-    '7. Limitation of Liability',
-    'To the fullest extent permitted by applicable Philippine law, the development team and Bestlink College of the Philippines shall not be liable for indirect, incidental, special, or consequential damages arising from or related to the authorized use of IHIMS, including loss of data, business interruption, or loss of anticipated benefits, except where such liability cannot lawfully be excluded or limited.'
-  ],
-
-  [
-    '8. Acceptable Use',
-    'The subscribing institution and its authorized users shall use IHIMS only for lawful and legitimate institutional purposes. Users shall not attempt to gain unauthorized access, interfere with system operations, circumvent security controls, introduce malicious code, misuse system functionality, or access information beyond their authorized permissions.'
-  ],
-
-  [
-    '9. Account and Access Responsibility',
-    'The subscribing institution is responsible for managing authorized user accounts and ensuring that credentials are kept confidential and are not shared with unauthorized individuals. Any suspected unauthorized access, compromised account, or security incident involving IHIMS should be reported promptly to the designated IHIMS development or system administration team.'
-  ],
-
-  [
-    '10. Changes and Availability',
-    'The development team reserves the right to update, modify, improve, suspend, or discontinue portions of IHIMS when reasonably necessary for maintenance, security, technical improvements, or system development. Where practicable, material changes affecting system availability or functionality will be communicated to the subscribing institution.'
-  ],
-
-  [
-    '11. Governing Law',
-    'This Agreement shall be governed by and interpreted in accordance with the laws of the Republic of the Philippines. Any questions, concerns, or requests relating to this Agreement or the use of IHIMS may be directed to the designated IHIMS development or administration team through Bestlink College of the Philippines.'
-  ],
-
-  [
-    '12. Acceptance of Terms',
-    'By accessing or using IHIMS, the subscribing institution and its authorized users acknowledge that they have read, understood, and agreed to comply with the terms and conditions set forth in this Agreement, subject to applicable Philippine laws and regulations.'
-  ]
-]
-.map(([h,p])=>(
+                    ['1. Grant of License','A limited, non-exclusive, non-transferable license is granted to the subscribing healthcare institution for internal HR management purposes only. This does not convey ownership of the software.'],
+                    ['2. Intellectual Property','IHIMS and all its components are the intellectual property of the development team and Bestlink College of the Philippines. Copying, modifying, distributing, or reverse-engineering without written consent is prohibited.'],
+                    ['3. Data Ownership','All institutional data entered into IHIMS remains the sole property of the subscribing institution. The development team claims no ownership over institutional data.'],
+                    ['4. AI Disclaimer','AI-generated outputs are for decision-support only. The development team makes no warranty regarding accuracy or fitness for a particular purpose of any AI-generated insight.'],
+                    ['5. No Warranty','IHIMS is provided "as is." The development team does not warrant uninterrupted or error-free operation. The institution is responsible for data backup and security measures.'],
+                    ['6. Limitation of Liability','To the fullest extent permitted by Philippine law, the development team shall not be liable for indirect, incidental, or consequential damages arising from use of IHIMS.'],
+                    ['7. Governing Law','Governed by the laws of the Republic of the Philippines. Contact the IHIMS development team through Bestlink College of the Philippines for any Agreement questions.'],
+                  ].map(([h,p])=>(
                     <div key={h} style={{ marginBottom:16 }}>
                       <h4 style={{ color:'#16a34a', marginBottom:4 }}>{h}</h4>
                       <p style={{ margin:0 }}>{p}</p>
