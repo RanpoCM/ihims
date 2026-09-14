@@ -29,6 +29,18 @@ import {
   getAuditLog,
 } from './rbac'
 
+import {
+  fetchTrainingPrograms, createTrainingProgram, updateTrainingProgram, deleteTrainingProgram,
+  fetchCompetencies, createCompetency, updateCompetency as sbUpdateCompetency, deleteCompetency,
+  fetchRecognitionAwards, createRecognitionAward, updateRecognitionAward, deleteRecognitionAward,
+  fetchSuccessionCandidates, createSuccessionCandidate, updateSuccessionCandidate, deleteSuccessionCandidate,
+  fetchRegistrations, createRegistration, deleteRegistration,
+  fetchAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
+  fetchReviewCycles, createReviewCycle, updateReviewCycle, deleteReviewCycle,
+  fetchReviews, createReview, updateReview, deleteReview,
+  fetchAttendance, createAttendanceRecord, updateAttendanceRecord as sbUpdateAttendance, deleteAttendanceRecord as sbDeleteAttendance,
+} from './supabaseData'
+
 // ---------------------------------------------------------------------------
 // localStorage helpers (self-contained storage, no backend required)
 // ---------------------------------------------------------------------------
@@ -919,13 +931,42 @@ function AppContent({ role, roles, userName, userEmail, myPhoto, onUpdateMyPhoto
   const [trainingPrograms, setTrainingPrograms] = useState(() => getStoredData('ihims_training', initialTrainingPrograms))
   const [competencies, setCompetencies] = useState(() => getStoredData('ihims_competencies', initialCompetencies))
   const [recognitionAwards, setRecognitionAwards] = useState(() => getStoredData('ihims_recognition', initialRecognitionAwards))
-const [successionCandidates, setSuccessionCandidates] = useState(() => getStoredData('ihims_succession', initialSuccessionCandidates))
-const [accounts, setAccounts] = useState(() => getStoredData('ihims_accounts', initialAccounts))
+  const [successionCandidates, setSuccessionCandidates] = useState(() => getStoredData('ihims_succession', initialSuccessionCandidates))
+  const [accounts, setAccounts] = useState(() => getStoredData('ihims_accounts', initialAccounts))
   const [registrations, setRegistrations] = useState(() => getStoredData('ihims_registrations', []))
   const [announcements, setAnnouncements] = useState(() => getStoredData('ihims_announcements', initialAnnouncements))
   const [reviewCycles, setReviewCycles] = useState(() => getStoredData('ihims_review_cycles', []))
   const [reviews, setReviews] = useState(() => getStoredData('ihims_reviews', []))
   const [attendance, setAttendance] = useState(() => getStoredData('ihims_attendance', initialAttendance))
+
+  // ── Supabase loader for all remaining tables ───────────────────────────────
+  // Same pattern as employees: fetch on mount, fall back silently to
+  // localStorage if Supabase is unavailable.
+  const loadRemainingTables = useCallback(async () => {
+    const tryLoad = async (fetcher, setter, fallback, label) => {
+      try {
+        const rows = await fetcher()
+        if (rows.length > 0) setter(rows)
+        else if (fallback.length > 0) setter(fallback) // keep local seed data
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn(`[IHIMS] Supabase ${label} fetch failed, using localStorage:`, err.message)
+      }
+    }
+    await Promise.allSettled([
+      tryLoad(fetchTrainingPrograms,    setTrainingPrograms,    initialTrainingPrograms,    'training_programs'),
+      tryLoad(fetchCompetencies,         setCompetencies,         initialCompetencies,         'competencies'),
+      tryLoad(fetchRecognitionAwards,    setRecognitionAwards,    initialRecognitionAwards,    'recognition_awards'),
+      tryLoad(fetchSuccessionCandidates, setSuccessionCandidates, initialSuccessionCandidates, 'succession_candidates'),
+      tryLoad(fetchRegistrations,        setRegistrations,        [],                          'registrations'),
+      tryLoad(fetchAnnouncements,        setAnnouncements,        initialAnnouncements,        'announcements'),
+      tryLoad(fetchReviewCycles,         setReviewCycles,         [],                          'review_cycles'),
+      tryLoad(fetchReviews,             setReviews,              [],                          'reviews'),
+      tryLoad(fetchAttendance,          setAttendance,           [],                          'attendance'),
+    ])
+  }, [])
+
+  useEffect(() => { loadRemainingTables() }, [loadRemainingTables])
   const [loading] = useState(false)
   const [loadError] = useState('')
 
@@ -1085,126 +1126,183 @@ const actor = { name: userName || role, role, email: userEmail }
     }
   }
 
-  const addTraining = (prog) => {
+  // ── Training Programs ────────────────────────────────────────────────────
+  const addTraining = async (prog) => {
     requireEdit(roles, 'learning')
-    const newRow = { ...prog, id: nextId(trainingPrograms) }
-    setTrainingPrograms((prev) => [...prev, newRow])
-    appendAudit({ user: actor.name, role, action: 'create', module: 'learning', detail: `Added training program "${newRow.title}"` })
+    try {
+      const created = await createTrainingProgram(prog)
+      setTrainingPrograms((prev) => [...prev, created])
+      appendAudit({ user: actor.name, role, action: 'create', module: 'learning', detail: `Added training program "${created.title}"` })
+    } catch {
+      const newRow = { ...prog, id: nextId(trainingPrograms) }
+      setTrainingPrograms((prev) => [...prev, newRow])
+      appendAudit({ user: actor.name, role, action: 'create', module: 'learning', detail: `Added training program "${newRow.title}" (local)` })
+    }
   }
 
-  const updateTraining = (id, data) => {
+  const updateTraining = async (id, data) => {
     requireEdit(roles, 'learning')
     const target = trainingPrograms.find((p) => p.id === id)
     setTrainingPrograms((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'learning', detail: `Updated training program "${target?.title || id}"` })
+    try {
+      await updateTrainingProgram(id, data)
+      appendAudit({ user: actor.name, role, action: 'update', module: 'learning', detail: `Updated training program "${target?.title || id}"` })
+    } catch {
+      setTrainingPrograms((prev) => prev.map((p) => (p.id === id ? target : p)))
+    }
   }
 
-const deleteTraining = (id) => {
+  const deleteTraining = async (id) => {
     requireEdit(roles, 'learning')
     const target = trainingPrograms.find((p) => p.id === id)
     setTrainingPrograms((prev) => prev.filter((p) => p.id !== id))
-    appendAudit({ user: actor.name, role, action: 'delete', module: 'learning', detail: `Deleted training program "${target?.title || id}"` })
+    try {
+      await deleteTrainingProgram(id)
+      appendAudit({ user: actor.name, role, action: 'delete', module: 'learning', detail: `Deleted training program "${target?.title || id}"` })
+    } catch {
+      if (target) setTrainingPrograms((prev) => [...prev, target])
+    }
   }
 
-  const registerTraining = (programId) => {
-    // Staff (and up) can register themselves for training/certifications.
+  const registerTraining = async (programId) => {
     requireEdit(roles, 'learning')
     const program = trainingPrograms.find((p) => p.id === programId)
     if (!program) throw new Error('Program not found')
     if (program.status === 'completed') throw new Error('This program has already been completed')
-    // Avoid duplicate registration
     const already = registrations.some((r) => r.programId === programId && r.userId === actor.name)
-    if (already) {
-      throw new Error('You are already registered for this program')
-    }
-    // Enforce seat capacity — reject once the program is full
+    if (already) throw new Error('You are already registered for this program')
     if (program.seats && (program.participants || 0) >= program.seats) {
       throw new Error(`This program is at full capacity (${program.participants}/${program.seats} seats filled)`)
     }
-    const newRow = { id: nextId(registrations), programId, userId: actor.name, programTitle: program.title, registeredOn: new Date().toISOString() }
-    setRegistrations((prev) => [...prev, newRow])
-    // Increment participant count
+    const newRow = { programId, userId: actor.name, programTitle: program.title, registeredOn: new Date().toISOString() }
+    try {
+      const created = await createRegistration(newRow)
+      setRegistrations((prev) => [...prev, created])
+    } catch {
+      setRegistrations((prev) => [...prev, { ...newRow, id: nextId(registrations) }])
+    }
     setTrainingPrograms((prev) => prev.map((p) => (p.id === programId ? { ...p, participants: (p.participants || 0) + 1 } : p)))
     appendAudit({ user: actor.name, role, action: 'register', module: 'learning', detail: `Registered for "${program.title}"` })
-    return newRow
   }
 
-  const addRecognition = (rec) => {
+  // ── Recognition Awards ───────────────────────────────────────────────────
+  const addRecognition = async (rec) => {
     requireEdit(roles, 'recognition')
-    const newRow = { ...rec, id: nextId(recognitionAwards), likes: 0, comments: [] }
-    setRecognitionAwards((prev) => [...prev, newRow])
-    appendAudit({ user: actor.name, role, action: 'create', module: 'recognition', detail: `Added recognition for "${newRow.recipient}"` })
+    const newRow = { ...rec, likes: 0, comments: [] }
+    try {
+      const created = await createRecognitionAward(newRow)
+      setRecognitionAwards((prev) => [...prev, created])
+      appendAudit({ user: actor.name, role, action: 'create', module: 'recognition', detail: `Added recognition for "${created.recipient}"` })
+    } catch {
+      setRecognitionAwards((prev) => [...prev, { ...newRow, id: nextId(recognitionAwards) }])
+    }
   }
 
-  const deleteRecognition = (id) => {
+  const deleteRecognition = async (id) => {
     requireEdit(roles, 'recognition')
     const target = recognitionAwards.find((a) => a.id === id)
     setRecognitionAwards((prev) => prev.filter((a) => a.id !== id))
-    appendAudit({ user: actor.name, role, action: 'delete', module: 'recognition', detail: `Deleted recognition "${target?.recipient || id}"` })
+    try {
+      await deleteRecognitionAward(id)
+      appendAudit({ user: actor.name, role, action: 'delete', module: 'recognition', detail: `Deleted recognition "${target?.recipient || id}"` })
+    } catch {
+      if (target) setRecognitionAwards((prev) => [...prev, target])
+    }
   }
 
-  const toggleRecognitionLike = (id) => {
-    // Any logged-in user (even staff) can like
-    setRecognitionAwards((prev) => prev.map((a) => {
-      if (a.id !== id) return a
-      const likedUsers = a.likedUsers || []
-      if (likedUsers.includes(actor.name)) {
-        return { ...a, likedUsers: likedUsers.filter((u) => u !== actor.name), likes: Math.max(0, (a.likes || 0) - 1) }
-      }
-      return { ...a, likedUsers: [...likedUsers, actor.name], likes: (a.likes || 0) + 1 }
-    }))
+  const toggleRecognitionLike = async (id) => {
+    const award = recognitionAwards.find((a) => a.id === id)
+    if (!award) return
+    const likedUsers = award.likedUsers || []
+    const liked = likedUsers.includes(actor.name)
+    const updated = liked
+      ? { ...award, likedUsers: likedUsers.filter((u) => u !== actor.name), likes: Math.max(0, (award.likes || 0) - 1) }
+      : { ...award, likedUsers: [...likedUsers, actor.name], likes: (award.likes || 0) + 1 }
+    setRecognitionAwards((prev) => prev.map((a) => (a.id === id ? updated : a)))
+    try { await updateRecognitionAward(id, { likes: updated.likes, comments: updated.comments }) } catch { /* non-critical */ }
   }
 
-  const addRecognitionComment = (id, text) => {
+  const addRecognitionComment = async (id, text) => {
     const comment = text.trim()
     if (!comment) return
-    setRecognitionAwards((prev) => prev.map((a) => {
-      if (a.id !== id) return a
-      const comments = a.comments || []
-      return { ...a, comments: [...comments, { author: actor.name, text: comment, at: new Date().toLocaleString() }] }
-    }))
+    const award = recognitionAwards.find((a) => a.id === id)
+    if (!award) return
+    const comments = [...(award.comments || []), { author: actor.name, text: comment, at: new Date().toLocaleString() }]
+    setRecognitionAwards((prev) => prev.map((a) => (a.id === id ? { ...a, comments } : a)))
+    try { await updateRecognitionAward(id, { likes: award.likes, comments }) } catch { /* non-critical */ }
   }
 
-const addCompetency = (comp) => {
+  // ── Competencies ─────────────────────────────────────────────────────────
+  const addCompetency = async (comp) => {
     requireEdit(roles, 'competency')
-    const newRow = { ...comp, weight: Number(comp.weight) || 0, id: nextId(competencies) }
-    setCompetencies((prev) => [...prev, newRow])
-    appendAudit({ user: actor.name, role, action: 'create', module: 'competency', detail: `Added competency "${newRow.name}"` })
+    try {
+      const created = await createCompetency({ ...comp, weight: Number(comp.weight) || 0 })
+      setCompetencies((prev) => [...prev, created])
+      appendAudit({ user: actor.name, role, action: 'create', module: 'competency', detail: `Added competency "${created.name}"` })
+    } catch {
+      setCompetencies((prev) => [...prev, { ...comp, weight: Number(comp.weight) || 0, id: nextId(competencies) }])
+    }
   }
 
-  const updateCompetency = (id, data) => {
+  const updateCompetency = async (id, data) => {
     requireEdit(roles, 'competency')
     const target = competencies.find((c) => c.id === id)
     setCompetencies((prev) => prev.map((c) => (c.id === id ? { ...c, ...data, weight: Number(data.weight) || c.weight } : c)))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'competency', detail: `Updated competency "${target?.name || id}"` })
+    try {
+      await sbUpdateCompetency(id, data)
+      appendAudit({ user: actor.name, role, action: 'update', module: 'competency', detail: `Updated competency "${target?.name || id}"` })
+    } catch {
+      setCompetencies((prev) => prev.map((c) => (c.id === id ? target : c)))
+    }
   }
 
-  const deleteCompetency = (id) => {
+  const deleteCompetency = async (id) => {
     requireEdit(roles, 'competency')
     const target = competencies.find((c) => c.id === id)
     setCompetencies((prev) => prev.filter((c) => c.id !== id))
-    appendAudit({ user: actor.name, role, action: 'delete', module: 'competency', detail: `Deleted competency "${target?.name || id}"` })
+    try {
+      await deleteCompetency(id)
+      appendAudit({ user: actor.name, role, action: 'delete', module: 'competency', detail: `Deleted competency "${target?.name || id}"` })
+    } catch {
+      if (target) setCompetencies((prev) => [...prev, target])
+    }
   }
 
-  const addSuccession = (plan) => {
+  // ── Succession ───────────────────────────────────────────────────────────
+  const addSuccession = async (plan) => {
     requireEdit(roles, 'succession')
-    const newRow = { ...plan, candidates: Array.isArray(plan.candidates) ? plan.candidates : [], id: nextId(successionCandidates) }
-    setSuccessionCandidates((prev) => [...prev, newRow])
-    appendAudit({ user: actor.name, role, action: 'create', module: 'succession', detail: `Added succession plan for "${newRow.currentRole}"` })
+    const newRow = { ...plan, candidates: Array.isArray(plan.candidates) ? plan.candidates : [] }
+    try {
+      const created = await createSuccessionCandidate(newRow)
+      setSuccessionCandidates((prev) => [...prev, created])
+      appendAudit({ user: actor.name, role, action: 'create', module: 'succession', detail: `Added succession plan for "${created.currentRole}"` })
+    } catch {
+      setSuccessionCandidates((prev) => [...prev, { ...newRow, id: nextId(successionCandidates) }])
+    }
   }
 
-  const updateSuccession = (id, data) => {
+  const updateSuccession = async (id, data) => {
     requireEdit(roles, 'succession')
     const target = successionCandidates.find((c) => c.id === id)
     setSuccessionCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...data, candidates: Array.isArray(data.candidates) ? data.candidates : c.candidates } : c)))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'succession', detail: `Updated succession plan "${target?.currentRole || id}"` })
+    try {
+      await updateSuccessionCandidate(id, data)
+      appendAudit({ user: actor.name, role, action: 'update', module: 'succession', detail: `Updated succession plan "${target?.currentRole || id}"` })
+    } catch {
+      setSuccessionCandidates((prev) => prev.map((c) => (c.id === id ? target : c)))
+    }
   }
 
-  const deleteSuccession = (id) => {
+  const deleteSuccession = async (id) => {
     requireEdit(roles, 'succession')
     const target = successionCandidates.find((c) => c.id === id)
     setSuccessionCandidates((prev) => prev.filter((c) => c.id !== id))
-    appendAudit({ user: actor.name, role, action: 'delete', module: 'succession', detail: `Deleted succession plan "${target?.currentRole || id}"` })
+    try {
+      await deleteSuccessionCandidate(id)
+      appendAudit({ user: actor.name, role, action: 'delete', module: 'succession', detail: `Deleted succession plan "${target?.currentRole || id}"` })
+    } catch {
+      if (target) setSuccessionCandidates((prev) => [...prev, target])
+    }
   }
 
 const addAccount = (acc) => {
