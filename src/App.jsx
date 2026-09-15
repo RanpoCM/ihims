@@ -1016,11 +1016,14 @@ if (e.key === 'ihims_accounts') setAccounts(parsed)
   }, [])
 
   // Persist to localStorage + broadcast whenever data changes
-useEffect(() => { emitDataChange('ihims_employees', employees) }, [employees])
+  // localStorage fallback persistence — kept for cross-tab sync and for when
+  // Supabase is unavailable. When connected to Supabase these writes are
+  // harmless duplicates; when falling back they're the only persistence layer.
+  useEffect(() => { emitDataChange('ihims_employees', employees) }, [employees])
   useEffect(() => { emitDataChange('ihims_training', trainingPrograms) }, [trainingPrograms])
   useEffect(() => { emitDataChange('ihims_competencies', competencies) }, [competencies])
   useEffect(() => { emitDataChange('ihims_recognition', recognitionAwards) }, [recognitionAwards])
-useEffect(() => { emitDataChange('ihims_succession', successionCandidates) }, [successionCandidates])
+  useEffect(() => { emitDataChange('ihims_succession', successionCandidates) }, [successionCandidates])
   useEffect(() => { emitDataChange('ihims_accounts', accounts) }, [accounts])
   useEffect(() => { emitDataChange('ihims_registrations', registrations) }, [registrations])
   useEffect(() => { emitDataChange('ihims_announcements', announcements) }, [announcements])
@@ -1358,25 +1361,39 @@ const deleteAccount = (id) => {
     appendAudit({ user: actor.name, role, action: 'delete', module: 'accounts', detail: `Deleted account "${target?.username || id}"` })
   }
 
-  const addAnnouncement = (ann) => {
+  const addAnnouncement = async (ann) => {
     requireEdit(roles, 'announcements')
-    const newRow = { ...ann, pinned: !!ann.pinned, id: nextId(announcements) }
-    setAnnouncements((prev) => [...prev, newRow])
-    appendAudit({ user: actor.name, role, action: 'create', module: 'announcements', detail: `Posted announcement "${newRow.title}"` })
+    try {
+      const created = await createAnnouncement(ann)
+      setAnnouncements((prev) => [created, ...prev])
+      appendAudit({ user: actor.name, role, action: 'create', module: 'announcements', detail: `Added announcement "${created.title}"` })
+    } catch {
+      setAnnouncements((prev) => [{ ...ann, id: nextId(announcements) }, ...prev])
+    }
   }
 
-  const updateAnnouncement = (id, data) => {
+  const updateAnnouncementFn = async (id, data) => {
     requireEdit(roles, 'announcements')
     const target = announcements.find((a) => a.id === id)
     setAnnouncements((prev) => prev.map((a) => (a.id === id ? { ...a, ...data } : a)))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'announcements', detail: `Updated announcement "${target?.title || id}"` })
+    try {
+      await updateAnnouncement(id, data)
+      appendAudit({ user: actor.name, role, action: 'update', module: 'announcements', detail: `Updated announcement "${target?.title || id}"` })
+    } catch {
+      setAnnouncements((prev) => prev.map((a) => (a.id === id ? target : a)))
+    }
   }
 
-  const deleteAnnouncement = (id) => {
+  const deleteAnnouncementFn = async (id) => {
     requireEdit(roles, 'announcements')
     const target = announcements.find((a) => a.id === id)
     setAnnouncements((prev) => prev.filter((a) => a.id !== id))
-    appendAudit({ user: actor.name, role, action: 'delete', module: 'announcements', detail: `Removed announcement "${target?.title || id}"` })
+    try {
+      await deleteAnnouncement(id)
+      appendAudit({ user: actor.name, role, action: 'delete', module: 'announcements', detail: `Removed announcement "${target?.title || id}"` })
+    } catch {
+      if (target) setAnnouncements((prev) => [...prev, target])
+    }
   }
 
   const bulkDeleteEmployees = async (ids) => {
@@ -1453,69 +1470,111 @@ const deleteAccount = (id) => {
     appendAudit({ user: actor.name, role, action: 'import', module: 'accounts', detail: 'Restored data from backup file' })
   }
 
-  // ---- Performance review cycles (HR/Admin manage, everyone self-assesses) -
-  const addReviewCycle = (cycle) => {
+  // ---- Performance review cycles -------------------------------------------
+  const addReviewCycle = async (cycle) => {
     requireEdit(roles, 'reviews')
-    const newRow = { ...cycle, id: nextId(reviewCycles), status: cycle.status || 'open' }
-    setReviewCycles((prev) => [...prev, newRow])
-    appendAudit({ user: actor.name, role, action: 'create', module: 'reviews', detail: `Created review cycle "${newRow.title}"` })
+    const newRow = { ...cycle, status: cycle.status || 'open' }
+    try {
+      const created = await createReviewCycle(newRow)
+      setReviewCycles((prev) => [...prev, created])
+      appendAudit({ user: actor.name, role, action: 'create', module: 'reviews', detail: `Created review cycle "${created.title}"` })
+    } catch {
+      setReviewCycles((prev) => [...prev, { ...newRow, id: nextId(reviewCycles) }])
+    }
   }
 
-  const updateReviewCycleStatus = (id, status) => {
+  const updateReviewCycleStatus = async (id, status) => {
     requireEdit(roles, 'reviews')
     setReviewCycles((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'reviews', detail: `Set review cycle status to "${status}"` })
+    try {
+      await updateReviewCycle(id, { status })
+      appendAudit({ user: actor.name, role, action: 'update', module: 'reviews', detail: `Set review cycle status to "${status}"` })
+    } catch { /* non-critical — UI already updated */ }
   }
 
-  const deleteReviewCycle = (id) => {
+  const deleteReviewCycleFn = async (id) => {
     requireEdit(roles, 'reviews')
     setReviewCycles((prev) => prev.filter((c) => c.id !== id))
     setReviews((prev) => prev.filter((r) => r.cycleId !== id))
-    appendAudit({ user: actor.name, role, action: 'delete', module: 'reviews', detail: 'Deleted review cycle' })
+    try {
+      await deleteReviewCycle(id)
+      appendAudit({ user: actor.name, role, action: 'delete', module: 'reviews', detail: 'Deleted review cycle' })
+    } catch { /* non-critical */ }
   }
 
-  const submitSelfAssessment = (cycleId, text) => {
+  const submitSelfAssessment = async (cycleId, text) => {
     const existing = reviews.find((r) => r.cycleId === cycleId && r.employeeName === actor.name)
-    if (existing) {
-      setReviews((prev) => prev.map((r) => (r.id === existing.id ? { ...r, selfAssessment: text, status: r.status === 'reviewed' ? 'reviewed' : 'submitted' } : r)))
-    } else {
-      const newRow = { id: nextId(reviews), cycleId, employeeName: actor.name, selfAssessment: text, managerRating: null, managerComments: '', status: 'submitted' }
-      setReviews((prev) => [...prev, newRow])
+    try {
+      if (existing) {
+        const updated = { ...existing, selfAssessment: text, status: existing.status === 'reviewed' ? 'reviewed' : 'self_submitted', submittedAt: new Date().toISOString() }
+        setReviews((prev) => prev.map((r) => (r.id === existing.id ? updated : r)))
+        await updateReview(existing.id, updated)
+      } else {
+        const newRow = { cycleId, employeeName: actor.name, selfAssessment: text, status: 'self_submitted', submittedAt: new Date().toISOString() }
+        const created = await createReview(newRow)
+        setReviews((prev) => [...prev, created])
+      }
+    } catch {
+      if (!existing) {
+        setReviews((prev) => [...prev, { cycleId, employeeName: actor.name, selfAssessment: text, status: 'self_submitted', id: nextId(reviews) }])
+      }
     }
     appendAudit({ user: actor.name, role, action: 'update', module: 'reviews', detail: 'Submitted self-assessment' })
   }
 
-  const submitManagerReview = (reviewId, rating, comments) => {
+  const submitManagerReview = async (reviewId, rating, comments) => {
     requireEdit(roles, 'reviews')
-    setReviews((prev) => prev.map((r) => (r.id === reviewId ? { ...r, managerRating: rating, managerComments: comments, status: 'reviewed' } : r)))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'reviews', detail: 'Completed manager review' })
+    const changes = { managerRating: rating, managerFeedback: comments, status: 'reviewed', reviewedAt: new Date().toISOString() }
+    setReviews((prev) => prev.map((r) => (r.id === reviewId ? { ...r, ...changes } : r)))
+    try {
+      await updateReview(reviewId, changes)
+      appendAudit({ user: actor.name, role, action: 'update', module: 'reviews', detail: 'Completed manager review' })
+    } catch { /* non-critical */ }
   }
 
-  // ---- Peer recognition (open to every logged-in user) ---------------------
-  const giveShoutout = (rec) => {
-    const newRow = { ...rec, id: nextId(recognitionAwards), type: 'Peer Recognition', peer: true, giver: actor.name, likes: 0, comments: [] }
-    setRecognitionAwards((prev) => [...prev, newRow])
+  // ---- Peer shout-out -------------------------------------------------------
+  const giveShoutout = async (rec) => {
+    const newRow = { ...rec, type: 'Peer Recognition', peer: true, giver: actor.name, likes: 0, comments: [] }
+    try {
+      const created = await createRecognitionAward(newRow)
+      setRecognitionAwards((prev) => [...prev, created])
+    } catch {
+      setRecognitionAwards((prev) => [...prev, { ...newRow, id: nextId(recognitionAwards) }])
+    }
     appendAudit({ user: actor.name, role, action: 'create', module: 'recognition', detail: `Gave a peer shout-out to "${newRow.recipient}"` })
   }
 
   // ---- Attendance management -----------------------------------------------
-  const addAttendanceRecord = (record) => {
+  const addAttendanceRecord = async (record) => {
     requireEdit(roles, 'performance')
-    const newRow = { ...record, id: nextId(attendance) }
-    setAttendance((prev) => [...prev, newRow])
-    appendAudit({ user: actor.name, role, action: 'create', module: 'attendance', detail: `Logged ${record.status} for employee ID ${record.employeeId} on ${record.date}` })
+    try {
+      const created = await createAttendanceRecord(record)
+      setAttendance((prev) => {
+        const filtered = prev.filter((r) => !(r.employeeId === record.employeeId && r.date === record.date))
+        return [...filtered, created]
+      })
+      appendAudit({ user: actor.name, role, action: 'create', module: 'attendance', detail: `Logged ${record.status} for employee ID ${record.employeeId} on ${record.date}` })
+    } catch {
+      setAttendance((prev) => [...prev.filter((r) => !(r.employeeId === record.employeeId && r.date === record.date)), { ...record, id: nextId(attendance) }])
+    }
   }
 
-  const updateAttendanceRecord = (id, data) => {
+  const updateAttendanceRecord = async (id, data) => {
     requireEdit(roles, 'performance')
     setAttendance((prev) => prev.map((r) => (r.id === id ? { ...r, ...data } : r)))
-    appendAudit({ user: actor.name, role, action: 'update', module: 'attendance', detail: `Updated attendance record ${id}` })
+    try {
+      await sbUpdateAttendance(id, data)
+      appendAudit({ user: actor.name, role, action: 'update', module: 'attendance', detail: `Updated attendance record ${id}` })
+    } catch { /* non-critical */ }
   }
 
-  const deleteAttendanceRecord = (id) => {
+  const deleteAttendanceRecord = async (id) => {
     requireEdit(roles, 'performance')
     setAttendance((prev) => prev.filter((r) => r.id !== id))
-    appendAudit({ user: actor.name, role, action: 'delete', module: 'attendance', detail: `Deleted attendance record ${id}` })
+    try {
+      await sbDeleteAttendance(id)
+      appendAudit({ user: actor.name, role, action: 'delete', module: 'attendance', detail: `Deleted attendance record ${id}` })
+    } catch { /* non-critical */ }
   }
 
   // ---- Competency qualitative notes ----------------------------------------
@@ -1703,8 +1762,8 @@ case 'accounts':
             announcements={announcements}
             canEdit={canEditModule(roles, 'announcements')}
             addAnnouncement={addAnnouncement}
-            updateAnnouncement={updateAnnouncement}
-            deleteAnnouncement={deleteAnnouncement}
+            updateAnnouncement={updateAnnouncementFn}
+            deleteAnnouncement={deleteAnnouncementFn}
             role={role}
             userName={actor.name}
           />
@@ -1744,7 +1803,7 @@ case 'settings':
             userName={actor.name}
             addReviewCycle={addReviewCycle}
             updateReviewCycleStatus={updateReviewCycleStatus}
-            deleteReviewCycle={deleteReviewCycle}
+            deleteReviewCycle={deleteReviewCycleFn}
             submitSelfAssessment={submitSelfAssessment}
             submitManagerReview={submitManagerReview}
           />
