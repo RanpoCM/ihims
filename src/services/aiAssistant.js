@@ -95,7 +95,7 @@ const replies = {
   summary: (ctx) => {
     const avg = (arr, key) => arr.length ? Math.round(arr.reduce((s, x) => s + x[key], 0) / arr.length) : 0
     return (
-      '📊 **Organization Spotlight**\n' +
+      ' **Organization Spotlight**\n' +
       `• Employees: ${ctx.employees.length}\n` +
       `• Avg Performance: ${avg(ctx.employees, 'performance')}%\n` +
       `• Avg Competency: ${avg(ctx.employees, 'competency')}%\n` +
@@ -111,13 +111,13 @@ const replies = {
 
   top: (ctx) => {
     if (!ctx.top.length) return 'No employee data available yet.'
-    return '🏆 **Top Performers**\n' + ctx.top.map((e, i) =>
+    return ' **Top Performers**\n' + ctx.top.map((e, i) =>
       `${i + 1}. **${e.name}** — ${e.performance}% performance, ${e.competency}% competency (${e.department})`
     ).join('\n')
   },
 
   under: (ctx) => {
-    if (!ctx.under.length) return '✅ All employees are performing at or above 80%. No one needs urgent attention.'
+    if (!ctx.under.length) return ' All employees are performing at or above 80%. No one needs urgent attention.'
     return '⚠️ **Employees Needing Attention** (below 80%)\n' + ctx.under.map((e) =>
       `• ${e.name} — ${e.performance}% performance (${e.department})`
     ).join('\n')
@@ -125,9 +125,9 @@ const replies = {
 
   gaps: (ctx) => {
     const w = ctx.workforce
-    if (!w.criticalGaps.length) return '✅ No critical skill gaps identified across the organization.'
+    if (!w.criticalGaps.length) return ' No critical skill gaps identified across the organization.'
     return (
-      '🔍 **Critical Competency Gaps**\n' +
+      ' **Critical Competency Gaps**\n' +
       w.criticalGaps.slice(0, 5).map((g) =>
         `• **${g.name}** — affects ${g.count} employee(s), avg gap ${g.avgGap} level(s)`
       ).join('\n') +
@@ -139,7 +139,7 @@ const replies = {
     const w = ctx.workforce
     const dist = w.aiDistribution
     return (
-      '🤖 **Workforce AI Readiness**\n' +
+      ' **Workforce AI Readiness**\n' +
       `Overall readiness: **${ctx.orgAIReadiness}**\n` +
       `• AI Leaders: ${dist.leader}\n` +
       `• AI Ready: ${dist.ready}\n` +
@@ -147,8 +147,8 @@ const replies = {
       `• AI Developing: ${dist.developing}\n` +
       `• AI Beginner: ${dist.beginner}\n` +
       (w.criticalGaps.some((g) => /AI|Data|Digital/.test(g.name))
-        ? '\n💡 Focus on closing digital/AI skill gaps — see the AI Competency module.'
-        : '\n💡 Build AI readiness through the learning programs in Learning & Training.')
+        ? '\n Focus on closing digital/AI skill gaps — see the AI Competency module.'
+        : '\n Build AI readiness through the learning programs in Learning & Training.')
     )
   },
 
@@ -156,9 +156,9 @@ const replies = {
     const w = ctx.workforce
     const lowTraining = ctx.employees.filter((e) => e.training < 85).sort((a, b) => a.training - b.training).slice(0, 3)
     const lines = []
-    if (lowTraining.length) lines.push(`🎓 **Low training completion:** ${lowTraining.map((e) => `${e.name} (${e.training}%)`).join(', ')}`)
-    if (w.criticalGaps.length) lines.push(`🎯 **Upskill priority:** ${w.criticalGaps.slice(0, 3).map((g) => g.name).join(', ')}`)
-    if (ctx.upcoming.length) lines.push(`📅 **Upcoming programs:** ${ctx.upcoming.map((p) => p.title).join(', ')}`)
+    if (lowTraining.length) lines.push(` **Low training completion:** ${lowTraining.map((e) => `${e.name} (${e.training}%)`).join(', ')}`)
+    if (w.criticalGaps.length) lines.push(` **Upskill priority:** ${w.criticalGaps.slice(0, 3).map((g) => g.name).join(', ')}`)
+    if (ctx.upcoming.length) lines.push(` **Upcoming programs:** ${ctx.upcoming.map((p) => p.title).join(', ')}`)
     if (!lines.length) lines.push('No training needs identified — keep current programs running.')
     return lines.join('\n') + '\n\nOpen **Learning & Training** to register or create programs.'
   },
@@ -166,7 +166,7 @@ const replies = {
   succession: (ctx) => {
     const w = ctx.workforce
     const lines = [
-      '📈 **Succession Pipeline**',
+      ' **Succession Pipeline**',
       `• High-readiness plans: ${ctx.highReadiness.length}`,
       `• Promotion-ready employees: ${w.successionReady}`,
       `• Leadership pipeline (leadership ≥4): ${w.leadershipPipeline}`,
@@ -178,7 +178,7 @@ const replies = {
 
   recognition: (ctx) => {
     if (!ctx.recognitionAwards.length) return 'No recognitions recorded yet. Recognize a teammate in the Recognition module.'
-    return '🏅 **Recent Recognitions**\n' + ctx.recognitionAwards.slice(0, 3).map((r) =>
+    return ' **Recent Recognitions**\n' + ctx.recognitionAwards.slice(0, 3).map((r) =>
       `• **${r.recipient}** — ${r.type} (${r.department})`
     ).join('\n')
   },
@@ -186,7 +186,7 @@ const replies = {
   department: (ctx) => {
     const w = ctx.workforce
     if (!w.departments.length) return 'No department data available.'
-    return '🏢 **Department Competency**\n' + w.departments.map((d) =>
+    return ' **Department Competency**\n' + w.departments.map((d) =>
       `• **${d.name}**: ${d.competency}% competency, ${d.ai} AI readiness (${d.count} employees)`
     ).join('\n')
   },
