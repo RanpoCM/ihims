@@ -31,7 +31,7 @@ import {
 
 import {
   fetchTrainingPrograms, createTrainingProgram, updateTrainingProgram, deleteTrainingProgram,
-  fetchCompetencies, createCompetency, updateCompetency as sbUpdateCompetency, deleteCompetency,
+  fetchCompetencies, createCompetency, updateCompetency as sbUpdateCompetency, deleteCompetency as sbDeleteCompetency,
   fetchRecognitionAwards, createRecognitionAward, updateRecognitionAward, deleteRecognitionAward,
   fetchSuccessionCandidates, createSuccessionCandidate, updateSuccessionCandidate, deleteSuccessionCandidate,
   fetchRegistrations, createRegistration, deleteRegistration,
@@ -1264,7 +1264,7 @@ const actor = { name: userName || role, role, email: userEmail }
     const target = competencies.find((c) => c.id === id)
     setCompetencies((prev) => prev.filter((c) => c.id !== id))
     try {
-      await deleteCompetency(id)
+      await sbDeleteCompetency(id)
       appendAudit({ user: actor.name, role, action: 'delete', module: 'competency', detail: `Deleted competency "${target?.name || id}"` })
     } catch {
       if (target) setCompetencies((prev) => [...prev, target])
