@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { Component, useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import './App.css'
 import Icon from './components/Icon'
 import { supabase } from './supabaseClient'
@@ -891,6 +891,68 @@ function MoonIcon({ size = 16 }) {
       <path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7z" />
     </svg>
   )
+}
+
+// ---------------------------------------------------------------------------
+// ErrorBoundary — catches any render-time crash in a child component and
+// shows a recovery card instead of a blank screen. Without this, a single
+// bug in one module crashes the entire app silently.
+// ---------------------------------------------------------------------------
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error, info) {
+    // eslint-disable-next-line no-console
+    console.error('[IHIMS] Module crashed:', error, info)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 32, maxWidth: 560, margin: '40px auto' }}>
+          <div style={{
+            background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12,
+            padding: '24px 28px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: '#991b1b' }}>Module Error</div>
+                <div style={{ fontSize: 13, color: '#b91c1c', marginTop: 2 }}>This section encountered a problem and could not load.</div>
+              </div>
+            </div>
+            <div style={{ background: '#fee2e2', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, fontFamily: 'monospace', color: '#7f1d1d', wordBreak: 'break-word' }}>
+              {this.state.error?.message || 'Unknown error'}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => this.setState({ hasError: false, error: null })}
+                style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#dc2626', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #fca5a5', background: 'none', color: '#b91c1c', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Reload App
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
 }
 
 // App Content - localStorage-backed
@@ -1993,7 +2055,11 @@ default:
 <main className="main-content">
           {loading ? <div style={{ padding: 12, fontWeight: 600 }}>Loading…</div> : null}
           {loadError ? <div style={{ padding: 12, color: '#dc2626', fontWeight: 600 }}>{loadError}</div> : null}
-          {!loading && !loadError ? renderModule() : null}
+          {!loading && !loadError ? (
+            <ErrorBoundary key={activeModule}>
+              {renderModule()}
+            </ErrorBoundary>
+          ) : null}
         </main>
       </div>
 
