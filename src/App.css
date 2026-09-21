@@ -4156,7 +4156,7 @@ button {
 .login-info {
   background: var(--success-soft);
   color: #166534;
-  border: 1px solid #bbf7d0;
+  border: 1px solid #4ace12;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   font-size: var(--fs-sm);
@@ -4171,7 +4171,7 @@ button {
   padding: 14px;
   border: 1px dashed var(--warning);
   border-radius: var(--radius-sm);
-  background: #fffbeb;
+  background: #4ace12;
   text-align: center;
 }
 
