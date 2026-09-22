@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { COMPETENCIES, scoreLabel, AI_READINESS_DIMENSIONS, aiReadinessClass, requiredLevelsForRole, requiredLevelsSource, inferRequiredLevels, getRoleProfileOverrides, setRoleProfileOverride, clearRoleProfileOverride } from './framework'
-import { analyzeWorkforce, generateAIEnhancedRecommendation, recordGapSnapshot, getGapSnapshots, clearGapSnapshots } from './gapEngine'
+import {
+  COMPETENCIES, scoreLabel, AI_READINESS_DIMENSIONS, aiReadinessClass,
+  requiredLevelsForRole, requiredLevelsSource,
+  getRoleProfileOverrides, setRoleProfileOverride, clearRoleProfileOverride,
+} from './framework'
+import {
+  analyzeWorkforce,
+  generateAIEnhancedRecommendation,
+  recordGapSnapshot, getGapSnapshots, clearGapSnapshots,
+} from './gapEngine'
 
 // Small presentational helpers
 // Animated bar: width animates from 0 to target on mount / value change.
@@ -56,7 +64,7 @@ const PriorityPill = ({ label }) => (
 // Employee Dashboard
 function EmployeeDashboard({ analysis, apiKey }) {
   const a = analysis
-  const [aiRecs, setAiRecs] = useState({}) // competencyId -> { text, loading, error }
+  const [aiRecs, setAiRecs] = useState({})
 
   const requestAIRec = async (gap) => {
     if (!apiKey) {
@@ -70,6 +78,92 @@ function EmployeeDashboard({ analysis, apiKey }) {
     } catch (err) {
       setAiRecs((prev) => ({ ...prev, [gap.competencyId]: { error: err.message || 'AI recommendation failed.' } }))
     }
+  }
+
+  const exportPDF = () => {
+    const emp = a.employee
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    const gaps = a.gaps.filter((g) => g.gap > 0).slice(0, 5)
+    const gapRows = gaps.map((g) => `
+      <tr>
+        <td><strong>${g.competencyName}</strong></td>
+        <td>${scoreLabel(g.currentLevel)} (${g.currentLevel}/5)</td>
+        <td>${scoreLabel(g.requiredLevel)} (${g.requiredLevel}/5)</td>
+        <td>${g.gap} level(s)</td>
+        <td><span style="color:${g.priority==='High'?'#dc2626':g.priority==='Medium'?'#d97706':'#16a34a'};font-weight:700">${g.priority}</span></td>
+        <td>${g.recommendation?.why || '—'}</td>
+      </tr>`).join('')
+    const roadmapItems = (a.roadmap || []).map((phase) => `
+      <div style="margin-bottom:12px">
+        <div style="font-weight:700;color:#052e16;margin-bottom:4px">${phase.phase} (${phase.timeframe})</div>
+        <ul style="margin:0;padding-left:18px">
+          ${(phase.actions || []).map(act => `<li>${act.type}: ${act.target}</li>`).join('')}
+        </ul>
+      </div>`).join('')
+    const html = `<!DOCTYPE html><html><head>
+      <meta charset="utf-8">
+      <title>Development Plan — ${emp.name}</title>
+      <style>
+        * { margin:0;padding:0;box-sizing:border-box; }
+        body { font-family:'Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:32px;line-height:1.6; }
+        .header { border-bottom:3px solid #22c55e;padding-bottom:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end; }
+        .header-left h1 { font-size:22px;color:#052e16; }
+        .header-left p { color:#475569;font-size:13px;margin-top:2px; }
+        .header-right { text-align:right;color:#64748b;font-size:12px; }
+        .scores { display:flex;gap:16px;margin-bottom:24px; }
+        .score-card { flex:1;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;text-align:center; }
+        .score-card .num { font-size:26px;font-weight:800;color:#16a34a; }
+        .score-card .label { font-size:11px;color:#475569;margin-top:2px; }
+        h2 { font-size:15px;color:#052e16;border-left:4px solid #22c55e;padding-left:10px;margin:20px 0 12px; }
+        table { width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px; }
+        th { background:#052e16;color:#fff;padding:8px 10px;text-align:left; }
+        td { padding:7px 10px;border-bottom:1px solid #e2e8f0;vertical-align:top; }
+        tr:nth-child(even) td { background:#f8fafc; }
+        .info-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px; }
+        .info-item { background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px; }
+        .info-item .key { font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.04em; }
+        .info-item .val { font-weight:600;color:#1a1a1a;margin-top:2px; }
+        .footer { margin-top:32px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;display:flex;justify-content:space-between; }
+        @media print { body { padding:20px; } }
+      </style>
+    </head><body>
+      <div class="header">
+        <div class="header-left">
+          <h1>Individual Development Plan</h1>
+          <p>${emp.name} &mdash; ${emp.role} &bull; ${emp.department}</p>
+        </div>
+        <div class="header-right">
+          <div><strong>IHIMS</strong> &mdash; AI-Driven HR System</div>
+          <div>Generated: ${today}</div>
+          <div>Bestlink College of the Philippines</div>
+        </div>
+      </div>
+      <div class="scores">
+        <div class="score-card"><div class="num">${a.overallScore}%</div><div class="label">Overall Competency</div></div>
+        <div class="score-card"><div class="num">${a.promotionReadiness}%</div><div class="label">Promotion Readiness</div></div>
+        <div class="score-card"><div class="num">${a.ai.overall}</div><div class="label">AI Readiness &bull; ${a.aiClass.label}</div></div>
+        <div class="score-card"><div class="num" style="color:${a.retentionRisk==='High'?'#dc2626':'#16a34a'}">${a.retentionRisk}</div><div class="label">Retention Risk</div></div>
+      </div>
+      <div class="info-grid">
+        <div class="info-item"><div class="key">Qualifications</div><div class="val">${emp.qualifications||'—'}</div></div>
+        <div class="info-item"><div class="key">Employment Status</div><div class="val">${emp.employmentStatus||'—'}</div></div>
+        <div class="info-item"><div class="key">Date Hired</div><div class="val">${emp.dateHired||'—'}</div></div>
+        <div class="info-item"><div class="key">Overall Assessment</div><div class="val">${a.overallScore>=90?'Exceptional':a.overallScore>=80?'Proficient':a.overallScore>=70?'Developing':'Needs Improvement'}</div></div>
+      </div>
+      ${gaps.length>0?`<h2>Competency Gap Analysis</h2><table><thead><tr><th>Competency</th><th>Current</th><th>Required</th><th>Gap</th><th>Priority</th><th>Development Focus</th></tr></thead><tbody>${gapRows}</tbody></table>`:`<h2>Competency Gap Analysis</h2><p style="color:#16a34a;font-weight:600;margin-bottom:16px">&#10003; No competency gaps identified.</p>`}
+      ${roadmapItems?`<h2>Development Roadmap</h2><div>${roadmapItems}</div>`:''}
+      ${emp.competencyNotes?`<h2>HR Observations</h2><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px">${emp.competencyNotes}</div>`:''}
+      <div class="footer">
+        <span>IHIMS AI-Driven Competency Gap Analysis &mdash; Bestlink College of the Philippines</span>
+        <span>RA 10173 Compliant &bull; For HR Use Only</span>
+      </div>
+    </body></html>`
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => win.print(), 500)
   }
   return (
     <div className="gap-dash">
@@ -91,6 +185,15 @@ function EmployeeDashboard({ analysis, apiKey }) {
             <span className="gap-score-num">{a.promotionReadiness}%</span>
             <span className="gap-score-label">Promotion Readiness</span>
           </div>
+          <button
+            type="button"
+            onClick={exportPDF}
+            style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 16px', borderRadius:8, border:'1px solid var(--primary)', background:'var(--primary-soft)', color:'var(--primary)', fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}
+            title="Export individual development plan as PDF"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Export PDF
+          </button>
         </div>
       </div>
 
@@ -183,13 +286,13 @@ function EmployeeDashboard({ analysis, apiKey }) {
                     {g.recommendation.certification ? (
                       <div className="gap-rec-cert">Target certification: {g.recommendation.certification}</div>
                     ) : null}
-                    {/* AI-enhanced recommendation button */}
+                    {/* AI-enhanced recommendation */}
                     <div style={{ marginTop: 10 }}>
                       {aiRecs[g.competencyId]?.loading ? (
                         <div style={{ fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>Generating AI recommendation…</div>
                       ) : aiRecs[g.competencyId]?.text ? (
                         <div style={{ marginTop: 6, padding: '10px 12px', background: 'var(--primary-soft)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, lineHeight: 1.6 }}>
-                          <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)', display: 'block', marginBottom: 4 }}>AI-Enhanced Recommendation</strong>
+                          <strong style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)', display: 'block', marginBottom: 4 }}>✦ AI-Enhanced Recommendation</strong>
                           {aiRecs[g.competencyId].text}
                         </div>
                       ) : aiRecs[g.competencyId]?.error ? (
@@ -424,36 +527,38 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
   const [view, setView] = useState('employee')
   const [selectedId, setSelectedId] = useState(null)
 
-  // API key for AI-enhanced recommendations (stored locally, admin-set)
+  // ── API key for AI-enhanced recommendations ───────────────────────────────
   const API_KEY_STORE = 'ihims_anthropic_key'
-  const [apiKey, setApiKey] = useState(() => {
-    try { return localStorage.getItem(API_KEY_STORE) || '' } catch { return '' }
-  })
+  const [apiKey, setApiKey] = useState(() => { try { return localStorage.getItem(API_KEY_STORE) || '' } catch { return '' } })
   const [apiKeyDraft, setApiKeyDraft] = useState('')
   const [apiKeyMsg, setApiKeyMsg] = useState('')
 
   const saveApiKey = () => {
-    try {
-      localStorage.setItem(API_KEY_STORE, apiKeyDraft.trim())
-      setApiKey(apiKeyDraft.trim())
-      setApiKeyMsg('API key saved.')
-      setApiKeyDraft('')
-      setTimeout(() => setApiKeyMsg(''), 3000)
-    } catch { setApiKeyMsg('Failed to save key.') }
+    try { localStorage.setItem(API_KEY_STORE, apiKeyDraft.trim()); setApiKey(apiKeyDraft.trim()); setApiKeyMsg('API key saved.'); setApiKeyDraft(''); setTimeout(() => setApiKeyMsg(''), 3000) } catch { setApiKeyMsg('Failed to save.') }
   }
-
   const clearApiKey = () => {
-    try {
-      localStorage.removeItem(API_KEY_STORE)
-      setApiKey('')
-      setApiKeyMsg('API key cleared.')
-      setTimeout(() => setApiKeyMsg(''), 3000)
-    } catch { setApiKeyMsg('Failed to clear key.') }
+    try { localStorage.removeItem(API_KEY_STORE); setApiKey(''); setApiKeyMsg('API key cleared.'); setTimeout(() => setApiKeyMsg(''), 3000) } catch {}
   }
 
-  // Trend snapshots
+  // ── Trend snapshots ───────────────────────────────────────────────────────
   const [snapshots, setSnapshots] = useState(() => getGapSnapshots())
   const [snapshotMsg, setSnapshotMsg] = useState('')
+
+  // ── Role profile overrides ────────────────────────────────────────────────
+  const [overrides, setOverrides] = useState(() => getRoleProfileOverrides())
+  const [editingRole, setEditingRole] = useState(null)
+  const [editDraft, setEditDraft] = useState({})
+  const [overrideMsg, setOverrideMsg] = useState('')
+
+  const recognitionByEmployee = useMemo(() => {
+    const map = {}
+    recognitionAwards.forEach((r) => { map[r.recipient] = (map[r.recipient] || 0) + 1 })
+    return map
+  }, [recognitionAwards])
+
+  const workforce = useMemo(() => analyzeWorkforce(employees, recognitionByEmployee), [employees, recognitionByEmployee])
+  const selected = workforce.analyses.find((a) => a.employee.id === selectedId) || workforce.analyses[0]
+  const uniqueRoles = useMemo(() => [...new Set(employees.map(e => e.role))].sort(), [employees])
 
   const takeSnapshot = () => {
     recordGapSnapshot(employees, recognitionByEmployee)
@@ -462,25 +567,16 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
     setTimeout(() => setSnapshotMsg(''), 3000)
   }
 
-  // Role profile overrides
-  const [overrides, setOverrides] = useState(() => getRoleProfileOverrides())
-  const [editingRole, setEditingRole] = useState(null)
-  const [editDraft, setEditDraft] = useState({})
-  const [overrideMsg, setOverrideMsg] = useState('')
-
-  const uniqueRoles = useMemo(() => [...new Set(employees.map(e => e.role))].sort(), [employees])
-
   const startEditRole = (role) => {
-    const current = requiredLevelsForRole(role, employees.find(e => e.role === role)?.department)
-    setEditDraft({ ...current })
+    const dept = employees.find(e => e.role === role)?.department
+    setEditDraft({ ...requiredLevelsForRole(role, dept) })
     setEditingRole(role)
     setOverrideMsg('')
   }
 
   const saveRoleOverride = () => {
     setRoleProfileOverride(editingRole, editDraft)
-    const next = getRoleProfileOverrides()
-    setOverrides(next)
+    setOverrides(getRoleProfileOverrides())
     setEditingRole(null)
     setOverrideMsg(`Profile for "${editingRole}" saved as override.`)
     setTimeout(() => setOverrideMsg(''), 3000)
@@ -493,24 +589,13 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
     setTimeout(() => setOverrideMsg(''), 3000)
   }
 
-  const recognitionByEmployee = useMemo(() => {
-    const map = {}
-    recognitionAwards.forEach((r) => {
-      map[r.recipient] = (map[r.recipient] || 0) + 1
-    })
-    return map
-  }, [recognitionAwards])
-
-  const workforce = useMemo(() => analyzeWorkforce(employees, recognitionByEmployee), [employees, recognitionByEmployee])
-  const selected = workforce.analyses.find((a) => a.employee.id === selectedId) || workforce.analyses[0]
-
   const tabs = [
-    { id: 'employee', label: 'Employee Dashboard' },
-    { id: 'manager', label: 'Manager Dashboard' },
-    { id: 'hr', label: 'HR Dashboard' },
-    { id: 'executive', label: 'Executive Dashboard' },
+    { id: 'employee',     label: 'Employee Dashboard' },
+    { id: 'manager',      label: 'Manager Dashboard' },
+    { id: 'hr',           label: 'HR Dashboard' },
+    { id: 'executive',    label: 'Executive Dashboard' },
     { id: 'roleProfiles', label: 'Role Profiles' },
-    { id: 'trends', label: 'Trends' },
+    { id: 'trends',       label: 'Trends' },
   ]
 
   return (
@@ -526,6 +611,7 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
         ))}
       </div>
 
+      {/* ── EMPLOYEE DASHBOARD ── */}
       {view === 'employee' && (
         <div className="gap-view">
           <div className="gap-employee-select">
@@ -539,8 +625,8 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
           {selected && <EmployeeDashboard analysis={selected} apiKey={apiKey} />}
         </div>
       )}
-      {view === 'manager' && <ManagerDashboard workforce={workforce} />}
-      {view === 'hr' && <HRDashboard workforce={workforce} />}
+      {view === 'manager'   && <ManagerDashboard   workforce={workforce} />}
+      {view === 'hr'        && <HRDashboard        workforce={workforce} />}
       {view === 'executive' && <ExecutiveDashboard workforce={workforce} />}
 
       {/* ── ROLE PROFILES TAB ── */}
@@ -549,21 +635,11 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
           <div className="gap-panel">
             <h4>Role Competency Profiles</h4>
             <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12 }}>
-              These are the required competency levels used by the gap engine. Profiles are sourced from: an admin override (highest priority), the built-in expert table, or the automated keyword classifier. You can review and adjust any auto-generated profile here.
+              Required competency levels used by the gap engine per role. Source priority: Admin Override → Built-in Table → Auto-Inferred (keyword classifier). HR/Admin can review and adjust any profile here.
             </p>
             {overrideMsg && <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--primary-soft)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, color: 'var(--primary)' }}>{overrideMsg}</div>}
             <table className="gap-table">
-              <thead>
-                <tr>
-                  <th>Role</th>
-                  <th>Source</th>
-                  <th>Clinical</th>
-                  <th>Leadership</th>
-                  <th>Technical</th>
-                  <th>Compliance</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Role</th><th>Source</th><th>Clinical</th><th>Leadership</th><th>Technical</th><th>Compliance</th><th>Actions</th></tr></thead>
               <tbody>
                 {uniqueRoles.map((role) => {
                   const dept = employees.find(e => e.role === role)?.department
@@ -601,13 +677,12 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
                   <button className="modal-close" onClick={() => setEditingRole(null)}>&times;</button>
                 </div>
                 <div className="modal-body">
-                  <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 14 }}>Set the required competency level (1–5) for each area. Saving creates an admin override that takes priority over auto-inference.</p>
+                  <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 14 }}>Set the required level (1–5) for each competency. Saving creates an admin override with highest priority.</p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {COMPETENCIES.map((c) => (
                       <label key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
                         <span>{c.name}</span>
-                        <input
-                          type="number" min="1" max="5"
+                        <input type="number" min="1" max="5"
                           value={editDraft[c.id] ?? 3}
                           onChange={e => setEditDraft(prev => ({ ...prev, [c.id]: Math.max(1, Math.min(5, parseInt(e.target.value) || 3)) }))}
                           style={{ width: 52, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', textAlign: 'center' }}
@@ -629,8 +704,7 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
             <h4>AI-Enhanced Recommendations</h4>
             <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 10 }}>
               Enter your Anthropic API key to enable LLM-generated recommendations on the Employee Dashboard.
-              The key is stored only in this browser's localStorage.{' '}
-              <strong>Do not use a production key here</strong> — see the security note in gapEngine.js.
+              Key is stored in this browser only. <strong>Do not use a production key here</strong> — see security note in gapEngine.js.
             </p>
             {apiKey ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -639,13 +713,8 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <input
-                  type="password"
-                  placeholder="sk-ant-..."
-                  value={apiKeyDraft}
-                  onChange={e => setApiKeyDraft(e.target.value)}
-                  style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, minWidth: 200 }}
-                />
+                <input type="password" placeholder="sk-ant-..." value={apiKeyDraft} onChange={e => setApiKeyDraft(e.target.value)}
+                  style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, minWidth: 200 }} />
                 <button className="btn-save" onClick={saveApiKey} disabled={!apiKeyDraft.trim()}>Save Key</button>
               </div>
             )}
@@ -660,46 +729,34 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
           <div className="gap-panel">
             <h4>Competency Trend Tracking</h4>
             <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12 }}>
-              Each snapshot records the org-wide competency index, AI readiness, critical gap count, and succession-ready count at a point in time. Take a snapshot periodically (e.g. monthly after a training cycle) to track whether gaps are closing.
+              Snapshots record org-wide competency index, AI readiness, critical gap count, and succession-ready count at a point in time. Take one periodically after a training cycle to track whether gaps are closing.
             </p>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
               <button className="btn-save" onClick={takeSnapshot}>Record Snapshot Now</button>
-              {snapshots.length > 0 && (
-                <button className="btn-delete" onClick={() => { clearGapSnapshots(); setSnapshots([]) }}>Clear History</button>
-              )}
+              {snapshots.length > 0 && <button className="btn-delete" onClick={() => { clearGapSnapshots(); setSnapshots([]) }}>Clear History</button>}
               {snapshotMsg && <span style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 600 }}>{snapshotMsg}</span>}
             </div>
             {snapshots.length === 0 ? (
               <div className="attention-empty">No snapshots yet — click "Record Snapshot Now" to start tracking trends.</div>
             ) : (
               <>
-                {/* Mini trend chart — pure CSS bars */}
                 <div style={{ marginBottom: 20 }}>
                   <h5 style={{ fontSize: 13, marginBottom: 8 }}>Org Competency Index over time</h5>
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80, background: 'var(--surface)', borderRadius: 8, padding: '8px 8px 0' }}>
                     {snapshots.slice(-30).map((s, i) => (
-                      <div key={i} title={`${s.date}: ${s.orgCompetencyIndex}%`} style={{ flex: 1, background: 'var(--primary)', borderRadius: '3px 3px 0 0', height: `${s.orgCompetencyIndex}%`, minWidth: 4, transition: 'height 0.3s', opacity: 0.7 + (i / snapshots.length) * 0.3 }} />
+                      <div key={i} title={`${s.date}: ${s.orgCompetencyIndex}%`}
+                        style={{ flex: 1, background: 'var(--primary)', borderRadius: '3px 3px 0 0', height: `${s.orgCompetencyIndex}%`, minWidth: 4, opacity: 0.7 + (i / snapshots.length) * 0.3 }} />
                     ))}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-                    <span>{snapshots[0]?.date}</span>
-                    <span>{snapshots[snapshots.length - 1]?.date}</span>
+                    <span>{snapshots[0]?.date}</span><span>{snapshots[snapshots.length - 1]?.date}</span>
                   </div>
                 </div>
                 <table className="gap-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Org Competency</th>
-                      <th>AI Readiness</th>
-                      <th>Critical Gaps</th>
-                      <th>Succession Ready</th>
-                      <th>Employees</th>
-                    </tr>
-                  </thead>
+                  <thead><tr><th>Date</th><th>Org Competency</th><th>AI Readiness</th><th>Critical Gaps</th><th>Succession Ready</th><th>Employees</th></tr></thead>
                   <tbody>
-                    {[...snapshots].reverse().map((s, i) => {
-                      const prev = snapshots[snapshots.length - 2 - i]
+                    {[...snapshots].reverse().map((s, i, arr) => {
+                      const prev = arr[i + 1]
                       const delta = (cur, pr) => {
                         if (!pr) return null
                         const d = cur - pr
