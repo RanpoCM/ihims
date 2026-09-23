@@ -600,7 +600,7 @@ export default function GapAnalysisModule({ employees, recognitionAwards }) {
 
   return (
     <div className="gap-module">
-      <h1 className="page-title">AI Competency Gap Analysis Engine</h1>
+      <h1 className="page-title">AI Driven Competency Gap Analysis Engine</h1>
       <p className="page-subtitle">Evidence-based competency assessment, AI readiness, and personalized development planning</p>
 
       <div className="gap-tabs">
